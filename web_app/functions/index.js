@@ -76,7 +76,8 @@ export const takeDailySnapshot = onSchedule({
                 real_estate: 0,
                 gold: 0,
                 crypto: 0,
-                car: 0
+                car: 0,
+                liability: 0
             };
             const fetchFailures = [];
 
@@ -85,7 +86,11 @@ export const takeDailySnapshot = onSchedule({
                 const chunk = docs.slice(i, i + batchSize);
                 await Promise.all(chunk.map(async (docSnap) => {
                     const asset = docSnap.data();
-                    if (asset.type === 'real_estate') {
+                    if (asset.type === 'liability') {
+                        const value = asset.quantity * (asset.avgPrice || 0) * (asset.region === 'US' ? exchangeRate : 1);
+                        balances['liability'] += value;
+                        return;
+                    } else if (asset.type === 'real_estate') {
                         const currentPrice = asset.realEstateCurrentPrice || asset.avgPrice || 0;
                         const value = (currentPrice - (asset.deposit || 0)) * (asset.region === 'US' ? exchangeRate : 1);
                         balances['real_estate'] += value;
@@ -177,7 +182,9 @@ export const takeDailySnapshot = onSchedule({
                 console.error(`[snapshot] ${uid} price fetch failures (${fetchFailures.length}):`, fetchFailures.join(', '));
             }
 
-            const totalValue = Object.values(balances).reduce((sum, val) => sum + (val || 0), 0);
+            const totalValue = Object.entries(balances).reduce((sum, [type, val]) => {
+                return type === 'liability' ? sum - (val || 0) : sum + (val || 0);
+            }, 0);
 
             const currentBaseSnapshot = {
                 stockValue: balances.stock || 0,
@@ -187,6 +194,7 @@ export const takeDailySnapshot = onSchedule({
                 goldValue: balances.gold || 0,
                 cryptoValue: balances.crypto || 0,
                 carValue: balances.car || 0,
+                liabilityValue: balances.liability || 0,
                 totalValue: totalValue,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
