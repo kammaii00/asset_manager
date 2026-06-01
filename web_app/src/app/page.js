@@ -267,11 +267,12 @@ export default function Dashboard() {
     }
   }
 
-  // 그래프용 포함된 자산 합계 계산
+  // 그래프용 포함된 자산 합계 계산 (부채는 차감)
   const includedTotalAssets = (enabledAssetTypes || []).reduce((sum, typeId) => {
     if (!includeMap[typeId]) return sum;
     const key = SUMMARY_KEYS[typeId];
-    return sum + (key ? (summary[key.total] || 0) : 0);
+    const value = key ? (summary[key.total] || 0) : 0;
+    return typeId === 'liability' ? sum - value : sum + value;
   }, 0);
 
   // Process data for charts
@@ -380,21 +381,18 @@ export default function Dashboard() {
     })) : [];
   }
 
-  // 각 시점의 "포함된 자산 합계" 계산
-  chartHistory = chartHistory.map(item => {
-    const includedTotal = (enabledAssetTypes || []).reduce((sum, typeId) => {
-      if (!includeMap[typeId]) return sum;
-      return sum + (item[HISTORY_KEYS[typeId]] || 0);
-    }, 0);
-    return { ...item, includedTotal };
-  });
+  // 각 시점의 "포함된 자산 합계" 계산 (부채는 차감)
+  const calcIncludedTotal = (item) => (enabledAssetTypes || []).reduce((sum, typeId) => {
+    if (!includeMap[typeId]) return sum;
+    const value = item[HISTORY_KEYS[typeId]] || 0;
+    return typeId === 'liability' ? sum - value : sum + value;
+  }, 0);
+
+  chartHistory = chartHistory.map(item => ({ ...item, includedTotal: calcIncludedTotal(item) }));
 
   // Fallback
   if (chartHistory.length === 0) {
-    const includedTotal = (enabledAssetTypes || []).reduce((sum, typeId) => {
-      if (!includeMap[typeId]) return sum;
-      return sum + (currentSummaryData[HISTORY_KEYS[typeId]] || 0);
-    }, 0);
+    const includedTotal = calcIncludedTotal(currentSummaryData);
     chartHistory = [
       { ...currentSummaryData, displayLabel: '오늘', includedTotal }
     ];

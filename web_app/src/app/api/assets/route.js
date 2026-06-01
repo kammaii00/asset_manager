@@ -363,6 +363,65 @@ export async function POST(request) {
             }
         }
 
+        // 과거 날짜 입력 시 daily_snapshots 소급 패치 (시세 독립 자산: 부채·차·현금KRW·부동산)
+        if (date) {
+            const kstNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+            const todayStr = `${kstNow.getFullYear()}-${String(kstNow.getMonth() + 1).padStart(2, '0')}-${String(kstNow.getDate()).padStart(2, '0')}`;
+
+            if (date < todayStr) {
+                let snapshotField = null;
+                let delta = 0;
+
+                if (type === 'liability') {
+                    // 대출(buy): 부채↑, 상환(sell): 부채↓
+                    snapshotField = 'liabilityValue';
+                    delta = action === 'sell' ? -(qty * prc) : (qty * prc);
+                } else if (type === 'car') {
+                    // 항상 매수, 고정 금액
+                    snapshotField = 'carValue';
+                    delta = qty * prc;
+                } else if (type === 'cash' && (region || 'KR') === 'KR') {
+                    // 원화 현금만 (USD는 환율 의존이라 제외)
+                    snapshotField = 'cashValue';
+                    delta = action === 'buy' ? (qty * prc) : -(qty * prc);
+                } else if (type === 'real_estate' && action === 'buy') {
+                    // 신규 추가 시: 스냅샷 저장값 = (현재가 - 보증금)
+                    snapshotField = 'realEstateValue';
+                    const currentPrice = parseFloat(realEstateCurrentPrice) || prc;
+                    const dep = parseFloat(deposit) || 0;
+                    delta = currentPrice - dep;
+                }
+
+                if (snapshotField && delta !== 0) {
+                    try {
+                        const snapshotsSnap = await adminDb
+                            .collection('users').doc(uid)
+                            .collection('daily_snapshots')
+                            .where('date', '>=', date)
+                            .where('date', '<', todayStr)
+                            .get();
+
+                        if (!snapshotsSnap.empty) {
+                            const batch = adminDb.batch();
+                            for (const docSnap of snapshotsSnap.docs) {
+                                const snap = docSnap.data();
+                                // 부채는 totalValue에서 차감, 나머지 자산은 가산
+                                const totalValueChange = type === 'liability' ? -delta : delta;
+                                batch.update(docSnap.ref, {
+                                    [snapshotField]: Math.max(0, (snap[snapshotField] || 0) + delta),
+                                    totalValue: (snap.totalValue || 0) + totalValueChange
+                                });
+                            }
+                            await batch.commit();
+                            console.log(`[snapshot patch] ${uid}: ${type}(${action}) delta=${delta} from ${date} → ${snapshotsSnap.size} snapshots updated`);
+                        }
+                    } catch (patchError) {
+                        console.error('[snapshot patch] Failed:', patchError);
+                    }
+                }
+            }
+        }
+
         return NextResponse.json({ success: true, id: assetId }, { status: 201 });
     } catch (error) {
         console.error('Error handling asset POST:', error);

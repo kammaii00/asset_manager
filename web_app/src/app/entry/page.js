@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Link from 'next/link';
 import useAssetStore from '@/store/useAssetStore';
 import { Wallet, TrendingUp, TrendingDown, Bell, Search, PlusCircle, User, CandlestickChart, PiggyBank, Banknote, Building, Check, Edit2, X, Trash2, ChevronDown, Plus, Trash, Gem, Bitcoin, Car, Settings } from 'lucide-react';
@@ -33,6 +33,8 @@ export default function EntryPage() {
     const [currentGoldPrice, setCurrentGoldPrice] = useState(null);
     const [visibleCount, setVisibleCount] = useState(10);
     const [mounted, setMounted] = useState(false);
+    const [repayingId, setRepayingId] = useState(null);
+    const [repaymentForm, setRepaymentForm] = useState({ date: new Date().toISOString().split('T')[0], price: '' });
 
     const [formData, setFormData] = useState({
         action: 'buy',
@@ -375,6 +377,30 @@ export default function EntryPage() {
 
     const cancelDelete = () => {
         setDeletingId(null);
+    };
+
+    const handleRepaymentSubmit = async (originalTrx) => {
+        if (!repaymentForm.date || !repaymentForm.price) {
+            alert('날짜와 상환 금액을 입력해주세요.');
+            return;
+        }
+        await addAsset({
+            type: 'liability',
+            action: 'sell',
+            date: repaymentForm.date,
+            region: originalTrx.region || 'KR',
+            investmentCountry: 'KR',
+            account: '일반',
+            symbol: '',
+            name: originalTrx.name,
+            quantity: 1,
+            price: parseFloat(repaymentForm.price),
+            interestRate: originalTrx.interestRate || 0,
+            linkedCashAssetId: null,
+            exchangeRate: currentExchangeRate || 1400
+        });
+        setRepayingId(null);
+        setRepaymentForm({ date: new Date().toISOString().split('T')[0], price: '' });
     };
 
     const handleSubmit = async () => {
@@ -1061,6 +1087,7 @@ export default function EntryPage() {
                                         </tr>
                                     ) : activeTab === 'liability' ? (
                                         <tr>
+                                            <th className="px-4 py-3 font-semibold w-20 text-center">구분</th>
                                             <th className="px-4 py-3 font-semibold w-24 text-left">날짜</th>
                                             <th className="px-4 py-3 font-semibold min-w-[150px] text-left">부채명</th>
                                             <th className="px-4 py-3 font-semibold text-right">금액</th>
@@ -1153,7 +1180,14 @@ export default function EntryPage() {
                                             </tr>
                                         ) : (
                                             filteredTransactions.slice(0, visibleCount).map(trx => (
-                                                <tr key={trx.id} className="hover:bg-slate-50 transition-colors">
+                                                <Fragment key={trx.id}>
+                                                <tr
+                                                    className={`transition-colors ${activeTab === 'liability' && trx.action === 'buy' ? 'cursor-pointer hover:bg-blue-50' : 'hover:bg-slate-50'}`}
+                                                    onClick={activeTab === 'liability' && trx.action === 'buy' ? () => {
+                                                        setRepayingId(prev => prev === trx.id ? null : trx.id);
+                                                        setRepaymentForm({ date: new Date().toISOString().split('T')[0], price: '' });
+                                                    } : undefined}
+                                                >
                                                     {activeTab === 'cash' ? (
                                                         // Cash Table Row Rendering
                                                         <>
@@ -1178,6 +1212,11 @@ export default function EntryPage() {
                                                         </>
                                                     ) : activeTab === 'liability' ? (
                                                         <>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${trx.action === 'sell' ? 'bg-blue-100 text-[#0d7ff2]' : 'bg-red-100 text-[#ff4d4f]'}`}>
+                                                                    {trx.action === 'sell' ? '상환' : '대출'}
+                                                                </span>
+                                                            </td>
                                                             <td className="px-4 py-3 text-slate-500">{trx.date}</td>
                                                             <td className="px-4 py-3 text-slate-800 font-bold">{trx.name}</td>
                                                             <td className="px-4 py-3 text-right text-slate-900 font-bold font-mono">{formatCurrency(trx.price, trx.region || 'KR')}</td>
@@ -1223,7 +1262,7 @@ export default function EntryPage() {
                                                         </>
                                                     )}
                                                     {/* Common Management Actions Column */}
-                                                    <td className="px-4 py-3 text-center">
+                                                    <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                                                         {deletingId === trx.id ? (
                                                             <div className="flex items-center justify-center gap-1">
                                                                 <span className="text-xs text-red-500 font-bold mr-1">삭제콜?</span>
@@ -1250,6 +1289,48 @@ export default function EntryPage() {
                                                         )}
                                                     </td>
                                                 </tr>
+                                                {activeTab === 'liability' && trx.action === 'buy' && repayingId === trx.id && (
+                                                    <tr className="bg-blue-50">
+                                                        <td colSpan="6" className="px-4 py-3">
+                                                            <div className="flex items-end gap-3">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <label className="text-xs font-semibold text-slate-500">상환일</label>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={repaymentForm.date}
+                                                                        onChange={e => setRepaymentForm(p => ({ ...p, date: e.target.value }))}
+                                                                        onClick={e => e.stopPropagation()}
+                                                                        className="border border-slate-300 rounded px-2 py-1.5 text-sm bg-white"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1">
+                                                                    <label className="text-xs font-semibold text-slate-500">상환 금액</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={repaymentForm.price}
+                                                                        onChange={e => setRepaymentForm(p => ({ ...p, price: e.target.value }))}
+                                                                        onClick={e => e.stopPropagation()}
+                                                                        placeholder="Ex: 10000000"
+                                                                        className="border border-slate-300 rounded px-2 py-1.5 text-sm text-right font-mono bg-white"
+                                                                    />
+                                                                </div>
+                                                                <button
+                                                                    onClick={e => { e.stopPropagation(); handleRepaymentSubmit(trx); }}
+                                                                    className="px-4 py-1.5 bg-[#0d7ff2] text-white text-sm font-semibold rounded hover:bg-blue-700 transition-colors"
+                                                                >
+                                                                    상환 저장
+                                                                </button>
+                                                                <button
+                                                                    onClick={e => { e.stopPropagation(); setRepayingId(null); }}
+                                                                    className="px-4 py-1.5 bg-slate-200 text-slate-600 text-sm font-semibold rounded hover:bg-slate-300 transition-colors"
+                                                                >
+                                                                    취소
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                </Fragment>
                                             ))
                                         )
                                     )}
