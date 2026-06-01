@@ -51,7 +51,7 @@ export default function Dashboard() {
     setMounted(true);
     fetchSettings();
     fetchAssets();
-    fetchTransactions();
+    fetchTransactions(true);
     fetchHistory();
 
     // Fetch current exchange rate with caching
@@ -91,7 +91,7 @@ export default function Dashboard() {
     if (!isLoggedIn) return;
     fetchSettings();
     fetchAssets();
-    fetchTransactions();
+    fetchTransactions(true);
     fetchHistory();
   }, [isLoggedIn]);
 
@@ -852,6 +852,36 @@ export default function Dashboard() {
 
           if (filteredAssets.length === 0 && !['stock', 'crypto', 'car', sortedEnabledTypes[0]].includes(assetType)) return null;
 
+          // 수익실현 금액 계산 (stock·pension·crypto만)
+          let realizedProfit = null;
+          if (['stock', 'pension', 'crypto'].includes(assetType)) {
+            const typeTxs = [...(transactions || [])]
+              .filter(t => t.type === assetType)
+              .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+            const state = {};
+            let total = 0;
+            const rate = currentExchangeRate || 1400;
+            for (const tx of typeTxs) {
+              const id = tx.asset_id;
+              if (!state[id]) state[id] = { qty: 0, costBasis: 0 };
+              const s = state[id];
+              const qty = tx.quantity || 0;
+              const txRate = tx.region === 'US' ? (tx.exchangeRateAtTx || rate) : 1;
+              const priceKRW = (tx.price || 0) * txRate;
+              if (tx.action === 'buy') {
+                s.qty += qty;
+                s.costBasis += qty * priceKRW;
+              } else if (tx.action === 'sell' && s.qty > 0) {
+                const soldQty = Math.min(qty, s.qty);
+                const avgCost = s.costBasis / s.qty;
+                total += soldQty * (priceKRW - avgCost);
+                s.costBasis -= soldQty * avgCost;
+                s.qty -= soldQty;
+              }
+            }
+            realizedProfit = total;
+          }
+
           // 헤더 합계 계산 (보유 자산이 있을 때만)
           const tableTotal = {};
           if (filteredAssets.length > 0) {
@@ -906,6 +936,11 @@ export default function Dashboard() {
                             </span>
                           );
                         })()}
+                        {realizedProfit !== null && realizedProfit !== 0 && (
+                          <span className={`text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-md border ${realizedProfit >= 0 ? 'text-[#ff4d4f] border-red-200 bg-red-50' : 'text-[#0d7ff2] border-blue-200 bg-blue-50'}`}>
+                            실현 {realizedProfit > 0 ? '+' : ''}{formatCurrency(realizedProfit)}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

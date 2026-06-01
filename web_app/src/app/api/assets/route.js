@@ -299,6 +299,9 @@ export async function POST(request) {
         if (type === 'liability' && interestRate !== undefined) {
             txData.interestRate = parseFloat(interestRate) || 0;
         }
+        if ((region || 'KR') === 'US' && exchangeRate) {
+            txData.exchangeRateAtTx = parseFloat(exchangeRate) || 1400;
+        }
         if (linkedCashAssetId) {
             txData.linkedCashAssetId = linkedCashAssetId;
         }
