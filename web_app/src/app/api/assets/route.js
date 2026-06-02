@@ -371,7 +371,7 @@ export async function POST(request) {
             const kstNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
             const todayStr = `${kstNow.getFullYear()}-${String(kstNow.getMonth() + 1).padStart(2, '0')}-${String(kstNow.getDate()).padStart(2, '0')}`;
 
-            if (date < todayStr) {
+            if (date <= todayStr) {
                 let snapshotField = null;
                 let delta = 0;
 
@@ -401,7 +401,7 @@ export async function POST(request) {
                             .collection('users').doc(uid)
                             .collection('daily_snapshots')
                             .where('date', '>=', date)
-                            .where('date', '<', todayStr)
+                            .where('date', '<=', todayStr)
                             .get();
 
                         if (!snapshotsSnap.empty) {

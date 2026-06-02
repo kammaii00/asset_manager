@@ -12,7 +12,7 @@ export async function POST(request) {
         const {
             stockValue = 0, cashValue = 0, pensionValue = 0,
             realEstateValue = 0, goldValue = 0, cryptoValue = 0,
-            carValue = 0, totalValue = 0
+            carValue = 0, liabilityValue = 0, totalValue = 0
         } = body;
 
         const kstDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -25,7 +25,7 @@ export async function POST(request) {
         const snapshotData = {
             stockValue, cashValue, pensionValue,
             realEstateValue, goldValue, cryptoValue, carValue,
-            totalValue,
+            liabilityValue, totalValue,
             updatedAt: FieldValue.serverTimestamp(),
         };
 
