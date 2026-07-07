@@ -199,7 +199,7 @@ export default function AssetTable({
                                                         <td className="p-4 font-bold text-slate-900">{asset.name}</td>
                                                         <td className="p-4 text-right font-medium text-slate-700">{asset.quantity.toLocaleString()}</td>
                                                         <td className="p-4 text-right text-slate-600 pr-5">{formatCurrency(asset.avgPrice, 'KR')}</td>
-                                                        <td className="p-4 text-right text-slate-600 pr-5">{formatCurrency(asset.goldCurrentPrice || asset.avgPrice, 'KR')}</td>
+                                                        <td className="p-4 text-right text-slate-600 pr-5">{formatCurrency(asset.currentPrice || asset.goldCurrentPrice || asset.avgPrice, 'KR')}</td>
                                                         <td className="p-4 text-right font-bold text-slate-900"><div className="flex flex-col items-end"><span>{formatCurrency(asset.totalValue, 'KR')}</span></div></td>
                                                         <td className="p-4 text-right">
                                                             <div className="flex flex-col items-end">
