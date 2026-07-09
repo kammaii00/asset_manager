@@ -136,6 +136,7 @@ export default function SettingsPage() {
                     <nav className="hidden md:flex items-center gap-6">
                         <Link href="/" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">대시보드</Link>
                         <Link href="/entry" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">자산 입력</Link>
+                        <Link href="/journal" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">투자일기</Link>
                     </nav>
                 </div>
                 <div className="flex items-center gap-4">

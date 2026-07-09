@@ -422,6 +422,7 @@ export default function Dashboard() {
           <nav className="hidden md:flex items-center gap-6">
             <span className="text-slate-900 text-sm font-semibold hover:text-[#0d7ff2] transition-colors cursor-pointer">대시보드</span>
             <Link href="/entry" className="text-slate-500 text-sm font-medium hover:text-slate-900 transition-colors">자산 입력</Link>
+            <Link href="/journal" className="text-slate-500 text-sm font-medium hover:text-slate-900 transition-colors">투자일기</Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">

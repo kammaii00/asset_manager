@@ -10,5 +10,8 @@ docs/.bkit-memory.json
 **/.pdca-status.json
 **/.bkit-memory.json
 
+# Next.js 빌드 산출물 (루트에 생성되는 trace 등)
+.next/
+
 # Local OS
 .DS_Store

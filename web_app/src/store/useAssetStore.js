@@ -411,6 +411,94 @@ const useAssetStore = create(
                 set({ preferredIncludeMap: includeMap });
             },
 
+            journals: [],          // 투자일기 목록 (최근순)
+            todayJournal: null,    // 오늘의 시황 카드 + 메모
+            journalLoading: false,
+
+            // 오늘의 AI 시황 카드 조회(없으면 서버가 지연 생성). refresh=true면 강제 재생성
+            fetchTodayJournal: async (refresh = false) => {
+                set({ journalLoading: true });
+                try {
+                    const headers = await get().getAuthHeaders();
+                    const res = await fetch(`/api/journal/today${refresh ? '?refresh=1' : ''}`, { headers });
+                    if (!res.ok) throw new Error('Failed to fetch today journal');
+                    const data = await res.json();
+                    set({ todayJournal: data, journalLoading: false });
+                    return data;
+                } catch (error) {
+                    set({ journalLoading: false });
+                    console.error(error);
+                    return null;
+                }
+            },
+
+            // 투자일기 목록 조회
+            fetchJournals: async (limit = 30) => {
+                try {
+                    const headers = await get().getAuthHeaders();
+                    const res = await fetch(`/api/journal?limit=${limit}`, { headers });
+                    if (!res.ok) throw new Error('Failed to fetch journals');
+                    const data = await res.json();
+                    set({ journals: data });
+                    return data;
+                } catch (error) {
+                    console.error(error);
+                    return [];
+                }
+            },
+
+            // 특정 날짜의 주관 메모(매매 이유·감정·공부) 저장
+            saveJournalNote: async ({ date, text, emotion }) => {
+                try {
+                    const headers = await get().getAuthHeaders();
+                    const res = await fetch('/api/journal', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ date, text, emotion }),
+                    });
+                    if (!res.ok) throw new Error('Failed to save journal note');
+                    const saved = await res.json();
+                    // 로컬 상태 동기화
+                    set((state) => ({
+                        todayJournal: state.todayJournal?.date === date
+                            ? { ...state.todayJournal, userNote: saved.userNote }
+                            : state.todayJournal,
+                        journals: (() => {
+                            const exists = state.journals.some((j) => j.date === date);
+                            if (exists) {
+                                return state.journals.map((j) => j.date === date ? { ...j, userNote: saved.userNote } : j);
+                            }
+                            return [{ id: date, date, userNote: saved.userNote }, ...state.journals];
+                        })(),
+                    }));
+                    return saved;
+                } catch (error) {
+                    console.error(error);
+                    throw error;
+                }
+            },
+
+            // 특정 날짜의 주관 메모 삭제
+            deleteJournalNote: async (date) => {
+                try {
+                    const headers = await get().getAuthHeaders();
+                    const res = await fetch(`/api/journal?date=${date}`, { method: 'DELETE', headers });
+                    if (!res.ok) throw new Error('Failed to delete journal note');
+                    // 로컬 상태 동기화: 메모 제거, 시황·메모 둘 다 없으면 목록에서 제외
+                    set((state) => ({
+                        todayJournal: state.todayJournal?.date === date
+                            ? { ...state.todayJournal, userNote: null }
+                            : state.todayJournal,
+                        journals: state.journals
+                            .map((j) => (j.date === date ? { ...j, userNote: null } : j))
+                            .filter((j) => j.userNote || j.aiContext),
+                    }));
+                } catch (error) {
+                    console.error(error);
+                    throw error;
+                }
+            },
+
             getSummary: (exchangeRate = 1400) => {
                 const { assets } = get();
 
