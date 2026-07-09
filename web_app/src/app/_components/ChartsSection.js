@@ -127,8 +127,8 @@ export default function ChartsSection({
                 <div className="flex justify-between items-center mb-2">
                     <h3 className="text-lg font-bold text-slate-900">자산 변동 추이</h3>
                 </div>
-                <div className="w-full min-h-[300px] mt-4 relative">
-                    <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full flex-1 flex items-center mt-4 relative">
+                    <ResponsiveContainer width="100%" height={320}>
                         <ComposedChart data={chartHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="displayLabel" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={10} minTickGap={20} />
