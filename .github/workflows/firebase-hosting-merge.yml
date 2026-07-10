@@ -28,7 +28,9 @@ jobs:
         run: |
           echo "NEXT_PUBLIC_ALLOWED_EMAILS=${{ secrets.NEXT_PUBLIC_ALLOWED_EMAILS }}" > .env.production
           if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
-            node -e "const fs=require('fs'); const j=process.env.FIREBASE_SERVICE_ACCOUNT_JSON; fs.appendFileSync('.env.production', 'FIREBASE_SERVICE_ACCOUNT_JSON=' + JSON.stringify(j) + String.fromCharCode(10));"
+            # JSON을 그대로 .env에 쓰면 내부의 큰따옴표·개행 때문에 dotenv가 값을 잘라먹어 파싱이 깨진다.
+            # base64는 영숫자만이라 .env 한 줄에 안전하게 담긴다(embed-firebase-admin.mjs에서 디코딩).
+            node -e "const fs=require('fs'); const b64=Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_JSON,'utf8').toString('base64'); fs.appendFileSync('.env.production', 'FIREBASE_SERVICE_ACCOUNT_JSON_BASE64=' + b64 + String.fromCharCode(10));"
           fi
 
       - name: Install dependencies and build

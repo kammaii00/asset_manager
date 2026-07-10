@@ -16,7 +16,15 @@ dotenv.config({ path: path.join(root, '.env.local') });
 dotenv.config({ path: path.join(root, '.env.production') });
 dotenv.config({ path: path.join(root, '.env') });
 
-const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+// 서비스 계정 JSON은 큰따옴표와 개행을 포함해 .env 한 줄에 담으면 dotenv가 값을 잘라먹는다.
+// 그래서 CI는 base64(FIREBASE_SERVICE_ACCOUNT_JSON_BASE64)로 넣어주고 여기서 디코딩한다.
+const jsonRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+const jsonBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64;
+const json = jsonRaw?.trim()
+    ? jsonRaw
+    : jsonBase64?.trim()
+        ? Buffer.from(jsonBase64.trim(), 'base64').toString('utf8')
+        : undefined;
 const email = process.env.FIREBASE_CLIENT_EMAIL;
 const rawKey = process.env.FIREBASE_PRIVATE_KEY;
 const privateKey =
