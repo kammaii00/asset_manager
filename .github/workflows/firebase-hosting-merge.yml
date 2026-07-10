@@ -21,10 +21,11 @@ jobs:
           cache-dependency-path: './web_app/package-lock.json'
 
       # Next.js 프로덕션 빌드에 Admin SDK용 서비스 계정 JSON이 필요함(로컬은 .env.local, CI에는 없으면 API 500)
+      # 배포 인증용 키(github-action SA)와 앱 Admin SDK용 키(firebase-adminsdk SA)는 권한이 달라 시크릿을 분리한다.
       - name: Create env file
         working-directory: ./web_app
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ASSET_MASTER_JWPARK }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON }}
         run: |
           echo "NEXT_PUBLIC_ALLOWED_EMAILS=${{ secrets.NEXT_PUBLIC_ALLOWED_EMAILS }}" > .env.production
           if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
@@ -49,4 +50,5 @@ jobs:
           entryPoint: ./web_app
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ASSET_MASTER_JWPARK }}
+          # CLI가 webframeworks로 앱을 재빌드할 때도 Admin SDK 자격증명이 필요하다(배포 인증 키가 아님).
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON }}
