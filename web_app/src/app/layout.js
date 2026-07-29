@@ -17,13 +17,17 @@ export const metadata = {
   icons: {
     icon: '/icon.png',
   },
+  // 크롬 자동 번역 차단: 번역기가 텍스트를 <font>로 감싸면 React DOM 참조가 깨져 화면 전체가 죽는다
+  other: {
+    google: 'notranslate',
+  },
 };
 
 import { AuthProvider } from "@/components/AuthProvider";
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="ko" translate="no" className="notranslate">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

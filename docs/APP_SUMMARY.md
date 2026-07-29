@@ -23,7 +23,9 @@ AI는 작업 시 아래 구조를 참고하여 파일을 탐색하고 수정해�
 
 📦 `web_app/` (Next.js 앱 루트)
  ┣ 📂 `src/app/` # App Router 페이지 및 API
- ┃ ┣ 📜 `layout.js` # 폰트·전역 스타일, `AuthProvider`로 래핑
+ ┃ ┣ 📜 `layout.js` # 폰트·전역 스타일, `AuthProvider`로 래핑, `lang="ko"`·번역 차단 설정
+ ┃ ┣ 📜 `error.js` # 페이지 렌더링 오류 시 실제 메시지 + "다시 시도" 복구 화면
+ ┃ ┣ 📜 `global-error.js` # 루트 레이아웃까지 무너질 때의 최종 방어막
  ┃ ┣ 📜 `page.js` # 대시보드(메인)
  ┃ ┣ 📂 `entry/` # 자산·거래 입력
  ┃ ┣ 📂 `journal/` # 투자일기 (오늘의 AI 시황 카드 + 주관 메모 + 지난 기록 목록)
@@ -48,6 +50,7 @@ AI는 작업 시 아래 구조를 참고하여 파일을 탐색하고 수정해�
 * **AI:** 클라이언트가 자산 컨텍스트와 함께 `/api/ai-advisor`, `/api/ai-insights`를 호출하고, 투자일기는 `/api/journal/today`가 시황 요약을 생성한다. 서버에서 모델·제한 정책을 적용한다.
 
 ## 📝 7. 최근 주요 업데이트 내역
+* [2026-07-29]: **모바일(안드로이드 크롬) 접속 시 대시보드가 뜬 직후 죽던 문제 해결.** 원인은 **크롬 자동 번역**이었다 — `layout.js`가 `<html lang="en">`으로 선언돼 있어 크롬이 "한국어 내용의 영어 페이지"로 판단해 자동 번역을 걸었고, 번역기가 텍스트 노드를 `<font>`로 감싸면서 React가 기억하던 DOM 참조가 깨져 `insertBefore ... not a child of this node`로 화면 전체가 붕괴했다. 데이터가 들어와 리렌더가 잦아지는 **로그인 직후**에 특히 잘 터졌고, 자동 번역이 소극적인 데스크탑에서는 재현되지 않았다. 대응: `lang="ko"`로 정정 + `translate="no"`·`notranslate` 클래스·`<meta name="google" content="notranslate">`로 번역 차단. 더불어 `error.js`/`global-error.js`를 추가해, 앞으로 클라이언트 오류가 나도 Next.js 기본 문구 대신 **실제 에러 메시지와 "다시 시도" 버튼**이 표시되도록 했다(원인 추적 불가 문제 해소).
 * [2026-07-10]: **GitHub Actions 자동 배포 복구**(2026-04-02부터 계속 실패, 그동안 배포는 수동으로 이뤄짐). 원인은 시크릿 하나(`FIREBASE_SERVICE_ACCOUNT_ASSET_MASTER_JWPARK`)를 **배포 인증**과 **앱 Admin SDK** 두 용도로 공유한 것 — 앱용 키(`firebase-adminsdk` SA)로 덮어쓴 뒤부터 `cloudfunctions` 권한이 없어 webframeworks의 SSR 함수 배포가 403(`Failed to list functions`)으로 실패했다. GCP에서 `github-action` SA에 권한을 추가해도 소용없던 이유는 CI가 그 SA로 인증하지 않았기 때문. 대응: **배포 인증 = `github-action` SA 키**, **앱 Admin SDK = 신규 시크릿 `FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON`**으로 분리. 또한 서비스 계정 JSON을 `.env.production`에 그대로 쓰면 내부의 큰따옴표·개행 때문에 dotenv가 값을 잘라먹어 파싱이 깨지므로 **base64로 전달**(`FIREBASE_SERVICE_ACCOUNT_JSON_BASE64`)하도록 `embed-firebase-admin.mjs` 수정.
 * [2026-07-09]: **투자일기 Phase 1** 신규 구축 — `journal/page.js`(오늘의 AI 시황 카드 + 감정 태그·자유 메모 + 지난 기록), `/api/journal/today`(보유 종목 기준 시황·뉴스 지연 생성, 하루 1회 캐시), `/api/journal`(목록 GET·메모 POST), 스토어에 `fetchTodayJournal`/`fetchJournals`/`saveJournalNote` 추가, 헤더 "투자일기" 링크 활성화. Firestore `users/{uid}/journals/{YYYY-MM-DD}`에 `aiContext`(객관·source=ai_auto)와 `userNote`(주관·source=user)를 분리 저장해 향후 AI 자산관리 조언 백데이터로 활용.
 * [2026-04-06]: Cloud Run API 500 — `firebase deploy`는 `package.json` 스크립트를 무시하고 내부적으로 `next build`를 실행하는데, **Next.js 16 기본이 Turbopack**이라 `firebase-admin`이 `firebase-admin-<hash>` 가상 패키지로 외부화되어 Cloud Run에서 `ERR_MODULE_NOT_FOUND`. Firebase CLI는 Next.js 12-15.x만 공식 지원. 대응: **Next.js 16 → 15.5.14 다운그레이드**(Webpack 기본), ESLint 설정도 `FlatCompat`으로 Next.js 15 호환 포맷으로 수정.
