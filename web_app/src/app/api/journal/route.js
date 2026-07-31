@@ -3,7 +3,21 @@ import { adminDb, FieldValue, getUserIdFromRequest } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic';
 
-// 투자일기 목록 조회 (날짜 내림차순, 기본 30개)
+// 공용 시황 문서에서 화면에 필요한 필드만 추린다 (createdAt 등 직렬화 불가 필드 제외)
+function toBriefing(data) {
+    return {
+        headline: data.headline || '',
+        summary: data.summary || '',
+        domestic: data.domestic || [],
+        overseas: data.overseas || [],
+        watch: data.watch || [],
+        indices: data.indices || [],
+        sentiment: data.sentiment || null,
+        sources: data.sources || [],
+    };
+}
+
+// 날짜별 피드 조회 — 공용 시황(market_briefings)과 내 기록(users/{uid}/journals)을 날짜로 병합
 export async function GET(request) {
     try {
         const uid = await getUserIdFromRequest(request);
@@ -14,14 +28,31 @@ export async function GET(request) {
         const url = new URL(request.url);
         const limit = Math.min(Number(url.searchParams.get('limit')) || 30, 100);
 
-        const snap = await adminDb
-            .collection('users').doc(uid).collection('journals')
-            .orderBy('date', 'desc')
-            .limit(limit)
-            .get();
+        const [briefingSnap, journalSnap] = await Promise.all([
+            adminDb.collection('market_briefings').orderBy('date', 'desc').limit(limit).get(),
+            adminDb.collection('users').doc(uid).collection('journals').orderBy('date', 'desc').limit(limit).get(),
+        ]);
 
-        const journals = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        return NextResponse.json(journals);
+        // 날짜(YYYY-MM-DD)를 키로 시황 + 내 기록을 한 항목으로 합친다
+        const byDate = new Map();
+        for (const doc of briefingSnap.docs) {
+            const data = doc.data();
+            byDate.set(doc.id, { id: doc.id, date: data.date || doc.id, briefing: toBriefing(data), userNote: null });
+        }
+        for (const doc of journalSnap.docs) {
+            const data = doc.data();
+            const entry = byDate.get(doc.id) || { id: doc.id, date: data.date || doc.id, briefing: null, userNote: null };
+            entry.userNote = data.userNote || null;
+            byDate.set(doc.id, entry);
+        }
+
+        // 시황도 기록도 없는 빈 날짜는 제외하고 최신순 정렬
+        const feed = [...byDate.values()]
+            .filter((entry) => entry.briefing || entry.userNote)
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .slice(0, limit);
+
+        return NextResponse.json(feed);
     } catch (error) {
         console.error('Journal GET Error:', error);
         return NextResponse.json({ error: '일기 목록을 불러오지 못했습니다.' }, { status: 500 });
@@ -58,7 +89,7 @@ export async function POST(request) {
     }
 }
 
-// 특정 날짜의 유저 메모 삭제 (AI 시황이 있으면 메모만 제거, 없으면 문서 자체 삭제)
+// 특정 날짜의 유저 메모 삭제 (구버전 개인 시황 aiContext가 남아 있으면 메모만 제거, 없으면 문서 자체 삭제)
 export async function DELETE(request) {
     try {
         const uid = await getUserIdFromRequest(request);

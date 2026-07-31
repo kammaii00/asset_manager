@@ -5,6 +5,9 @@ import { default as YahooFinance } from "yahoo-finance2";
 admin.initializeApp();
 const db = admin.firestore();
 
+// 매일 오전 7시 국내외 증시 브리핑 생성 (투자일기 공용 시황)
+export { generateDailyBriefing } from "./briefing.js";
+
 let priceCache = {};
 const getCachedQuote = async (symbol) => {
     if (priceCache[symbol]) {

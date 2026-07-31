@@ -411,37 +411,21 @@ const useAssetStore = create(
                 set({ preferredIncludeMap: includeMap });
             },
 
-            journals: [],          // 투자일기 목록 (최근순)
-            todayJournal: null,    // 오늘의 시황 카드 + 메모
+            journalFeed: [],       // 날짜별 피드 (공용 시황 + 내 기록, 최신순)
             journalLoading: false,
 
-            // 오늘의 AI 시황 카드 조회(없으면 서버가 지연 생성). refresh=true면 강제 재생성
-            fetchTodayJournal: async (refresh = false) => {
-                set({ journalLoading: true });
-                try {
-                    const headers = await get().getAuthHeaders();
-                    const res = await fetch(`/api/journal/today${refresh ? '?refresh=1' : ''}`, { headers });
-                    if (!res.ok) throw new Error('Failed to fetch today journal');
-                    const data = await res.json();
-                    set({ todayJournal: data, journalLoading: false });
-                    return data;
-                } catch (error) {
-                    set({ journalLoading: false });
-                    console.error(error);
-                    return null;
-                }
-            },
-
-            // 투자일기 목록 조회
+            // 날짜별 피드 조회 — 서버가 공용 시황과 내 기록을 날짜로 합쳐서 내려준다
             fetchJournals: async (limit = 30) => {
+                set({ journalLoading: true });
                 try {
                     const headers = await get().getAuthHeaders();
                     const res = await fetch(`/api/journal?limit=${limit}`, { headers });
                     if (!res.ok) throw new Error('Failed to fetch journals');
                     const data = await res.json();
-                    set({ journals: data });
+                    set({ journalFeed: data, journalLoading: false });
                     return data;
                 } catch (error) {
+                    set({ journalLoading: false });
                     console.error(error);
                     return [];
                 }
@@ -458,19 +442,14 @@ const useAssetStore = create(
                     });
                     if (!res.ok) throw new Error('Failed to save journal note');
                     const saved = await res.json();
-                    // 로컬 상태 동기화
-                    set((state) => ({
-                        todayJournal: state.todayJournal?.date === date
-                            ? { ...state.todayJournal, userNote: saved.userNote }
-                            : state.todayJournal,
-                        journals: (() => {
-                            const exists = state.journals.some((j) => j.date === date);
-                            if (exists) {
-                                return state.journals.map((j) => j.date === date ? { ...j, userNote: saved.userNote } : j);
-                            }
-                            return [{ id: date, date, userNote: saved.userNote }, ...state.journals];
-                        })(),
-                    }));
+                    // 로컬 상태 동기화 (과거 날짜에도 기록할 수 있으므로 병합 후 날짜 내림차순 재정렬)
+                    set((state) => {
+                        const exists = state.journalFeed.some((j) => j.date === date);
+                        const merged = exists
+                            ? state.journalFeed.map((j) => (j.date === date ? { ...j, userNote: saved.userNote } : j))
+                            : [...state.journalFeed, { id: date, date, briefing: null, userNote: saved.userNote }];
+                        return { journalFeed: merged.sort((a, b) => b.date.localeCompare(a.date)) };
+                    });
                     return saved;
                 } catch (error) {
                     console.error(error);
@@ -486,12 +465,9 @@ const useAssetStore = create(
                     if (!res.ok) throw new Error('Failed to delete journal note');
                     // 로컬 상태 동기화: 메모 제거, 시황·메모 둘 다 없으면 목록에서 제외
                     set((state) => ({
-                        todayJournal: state.todayJournal?.date === date
-                            ? { ...state.todayJournal, userNote: null }
-                            : state.todayJournal,
-                        journals: state.journals
+                        journalFeed: state.journalFeed
                             .map((j) => (j.date === date ? { ...j, userNote: null } : j))
-                            .filter((j) => j.userNote || j.aiContext),
+                            .filter((j) => j.briefing || j.userNote),
                     }));
                 } catch (error) {
                     console.error(error);
