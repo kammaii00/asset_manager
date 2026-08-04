@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import useAssetStore from '@/store/useAssetStore';
 import JournalBriefing from '@/components/JournalBriefing';
 import JournalNoteEditor, { findEmotion } from '@/components/JournalNoteEditor';
-import { Wallet, Settings, BookOpen, Plus, Pencil, Trash2 } from 'lucide-react';
+import { AppHeader, MobileTabBar } from '@/components/AppNav';
+import { BookOpen, Plus, Pencil, Trash2 } from 'lucide-react';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -20,30 +20,6 @@ function formatDateLabel(date) {
     const [y, m, d] = date.split('-').map(Number);
     const day = DAY_LABELS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
     return `${m}월 ${d}일 (${day})`;
-}
-
-// 상단 헤더 (다른 화면과 동일 구성)
-function Header() {
-    return (
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 px-6 py-4 bg-white sticky top-0 z-50">
-            <div className="flex items-center gap-8">
-                <div className="flex items-center gap-3 text-slate-900">
-                    <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-[#0d7ff2]">
-                        <Wallet size={20} />
-                    </div>
-                    <h2 className="text-lg font-bold leading-tight tracking-tight">Asset Manager</h2>
-                </div>
-                <nav className="hidden md:flex items-center gap-6">
-                    <Link href="/" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">대시보드</Link>
-                    <Link href="/entry" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">자산 입력</Link>
-                    <span className="text-slate-900 text-sm font-semibold cursor-pointer">투자일기</span>
-                </nav>
-            </div>
-            <Link href="/settings" className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" title="설정">
-                <Settings size={22} />
-            </Link>
-        </header>
-    );
 }
 
 // 저장된 내 기록 표시 (감정 이모지 + 본문 + 수정·삭제)
@@ -123,8 +99,8 @@ export default function JournalPage() {
     if (!isLoggedIn) {
         return (
             <div className="bg-[#f5f7f8] min-h-screen text-slate-900 font-sans flex flex-col">
-                <Header />
-                <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <AppHeader />
+                <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 pb-24 md:pb-0 text-center">
                     <BookOpen size={48} className="text-slate-300" />
                     <h1 className="text-xl font-bold">투자일기는 로그인이 필요합니다</h1>
                     <p className="text-slate-500 text-sm max-w-sm">매일 아침 국내외 증시 뉴스를 정리해 드리고, 그날의 판단·감정을 기록으로 남길 수 있습니다.</p>
@@ -132,13 +108,16 @@ export default function JournalPage() {
                         Google로 로그인
                     </button>
                 </main>
+
+                {/* 모바일 하단 탭바 */}
+                <MobileTabBar />
             </div>
         );
     }
 
     return (
         <div className="bg-[#f5f7f8] min-h-screen text-slate-900 font-sans flex flex-col">
-            <Header />
+            <AppHeader />
             <main className="flex-1 w-full max-w-[720px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6 pb-32">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-black leading-tight flex items-center gap-2">
@@ -189,6 +168,9 @@ export default function JournalPage() {
                     </div>
                 )}
             </main>
+
+            {/* 모바일 하단 탭바 */}
+            <MobileTabBar />
         </div>
     );
 }

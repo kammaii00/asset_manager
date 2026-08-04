@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import useAssetStore from '@/store/useAssetStore';
-import { Wallet, TrendingDown, CandlestickChart, PiggyBank, Banknote, Building, Gem, Bitcoin, Car, Settings } from 'lucide-react';
+import { TrendingDown, CandlestickChart, PiggyBank, Banknote, Building, Gem, Bitcoin, Car } from 'lucide-react';
+import { AppHeader, MobileTabBar } from '@/components/AppNav';
 import EntryForm from './_components/EntryForm';
 import TransactionTable from './_components/TransactionTable';
 import ProModal from './_components/ProModal';
@@ -591,28 +591,9 @@ export default function EntryPage() {
 
     return (
         <div className="bg-[#f5f7f8] min-h-screen text-slate-900 font-sans flex flex-col">
-            <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 px-6 py-4 bg-white sticky top-0 z-50">
-                <div className="flex items-center gap-8">
-                    <div className="flex items-center gap-3 text-slate-900">
-                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-[#0d7ff2]">
-                            <Wallet size={20} />
-                        </div>
-                        <h2 className="text-lg font-bold leading-tight tracking-tight">Asset Manager</h2>
-                    </div>
-                    <nav className="hidden md:flex items-center gap-6">
-                        <Link href="/" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">대시보드</Link>
-                        <span className="text-slate-900 text-sm font-semibold cursor-pointer">자산 입력</span>
-                        <Link href="/journal" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">투자일기</Link>
-                    </nav>
-                </div>
-                <div className="flex items-center gap-4">
-                    <Link href="/settings" className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" title="설정">
-                        <Settings size={22} />
-                    </Link>
-                </div>
-            </header>
+            <AppHeader />
 
-            <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
+            <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6 pb-24 md:pb-8">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                     <div className="flex flex-col gap-2">
                         <h1 className="text-3xl sm:text-4xl font-black leading-tight">자산 관리 목록</h1>
@@ -704,6 +685,9 @@ export default function EntryPage() {
             </main>
 
             <ProModal showProModal={showProModal} setShowProModal={setShowProModal} />
+
+            {/* 모바일 하단 탭바 */}
+            <MobileTabBar />
         </div>
     );
 }

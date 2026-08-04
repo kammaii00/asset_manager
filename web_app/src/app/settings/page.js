@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useAssetStore from '@/store/useAssetStore';
-import { Wallet, Settings, CandlestickChart, PiggyBank, Banknote, Building, Gem, Bitcoin, Car, GripVertical, Plus, X, Check, ArrowLeft, PieChart, Target, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Settings, CandlestickChart, PiggyBank, Banknote, Building, Gem, Bitcoin, Car, GripVertical, Plus, X, Check, ArrowLeft, PieChart, Target, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { AppHeader, MobileTabBar } from '@/components/AppNav';
 
 // 앱에서 지원하는 모든 자산 유형 정의
 const ALL_ASSET_TYPES = [
@@ -125,29 +126,10 @@ export default function SettingsPage() {
     return (
         <div className="bg-[#f5f7f8] min-h-screen text-slate-900 font-sans flex flex-col">
             {/* 헤더 */}
-            <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 px-6 py-4 bg-white sticky top-0 z-50">
-                <div className="flex items-center gap-8">
-                    <div className="flex items-center gap-3 text-slate-900">
-                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-[#0d7ff2]">
-                            <Wallet size={20} />
-                        </div>
-                        <h2 className="text-lg font-bold leading-tight tracking-tight">Asset Manager</h2>
-                    </div>
-                    <nav className="hidden md:flex items-center gap-6">
-                        <Link href="/" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">대시보드</Link>
-                        <Link href="/entry" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">자산 입력</Link>
-                        <Link href="/journal" className="text-slate-500 text-sm font-medium hover:text-[#0d7ff2] transition-colors">투자일기</Link>
-                    </nav>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className="p-2 bg-blue-50 rounded-full text-[#0d7ff2]" title="설정">
-                        <Settings size={22} />
-                    </div>
-                </div>
-            </header>
+            <AppHeader />
 
             {/* 메인 콘텐츠 */}
-            <main className="flex-1 w-full max-w-[800px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8 pb-32">
+            <main className="flex-1 w-full max-w-[800px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8 pb-52 md:pb-32">
                 {/* 뒤로가기 + 타이틀 */}
                 <div className="flex items-center gap-3">
                     <Link href="/" className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-500">
@@ -454,8 +436,8 @@ export default function SettingsPage() {
                 </div>
             </main>
 
-            {/* 하단 고정 저장 버튼 */}
-            <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-50 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+            {/* 하단 고정 저장 버튼 (모바일에서는 하단 탭바 높이만큼 위로 띄운다) */}
+            <footer className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-50 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
                 <div className="max-w-[800px] mx-auto flex items-center justify-between">
                     <div className="flex flex-col">
                         <p className="text-xs text-slate-400">
@@ -487,6 +469,9 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </footer>
+
+            {/* 모바일 하단 탭바 */}
+            <MobileTabBar />
         </div>
     );
 }
