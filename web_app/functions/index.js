@@ -8,6 +8,9 @@ const db = admin.firestore();
 // 매일 오전 7시 국내외 증시 브리핑 생성 (투자일기 공용 시황)
 export { generateDailyBriefing } from "./briefing.js";
 
+// 매월 1일 종목마스터(DART 고유번호 ↔ 종목코드) 갱신 — 종목분석의 선행 데이터
+export { syncStockMasterMonthly } from "./analysis/stockMaster.js";
+
 let priceCache = {};
 const getCachedQuote = async (symbol) => {
     if (priceCache[symbol]) {
