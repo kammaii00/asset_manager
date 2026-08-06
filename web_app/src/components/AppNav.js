@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Wallet, LayoutDashboard, PlusCircle, BookOpen, Settings } from 'lucide-react';
+import { Wallet, LayoutDashboard, PlusCircle, BookOpen, LineChart, Settings } from 'lucide-react';
 
 // 전 화면 공통 메뉴 정의 (헤더와 모바일 탭바가 같은 목록을 공유)
 const NAV_ITEMS = [
     { href: '/', label: '대시보드', icon: LayoutDashboard },
     { href: '/entry', label: '자산 입력', icon: PlusCircle },
     { href: '/journal', label: '투자일기', icon: BookOpen },
+    { href: '/analysis', label: '기업분석', icon: LineChart },
 ];
 
-// 모바일 탭바에는 설정까지 포함해 4개 탭으로 노출
+// 모바일 탭바에는 설정까지 포함해 5개 탭으로 노출
 const TAB_ITEMS = [...NAV_ITEMS, { href: '/settings', label: '설정', icon: Settings }];
 
 // 현재 경로가 해당 메뉴인지 판별 ('/'는 정확히 일치할 때만 활성)

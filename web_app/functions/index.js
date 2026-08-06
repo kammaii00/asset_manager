@@ -11,6 +11,9 @@ export { generateDailyBriefing } from "./briefing.js";
 // 매월 1일 종목마스터(DART 고유번호 ↔ 종목코드) 갱신 — 종목분석의 선행 데이터
 export { syncStockMasterMonthly } from "./analysis/stockMaster.js";
 
+// 종목 심층분석 큐 함수 (asia-northeast3) — 요청당 1~2분 소요되므로 백그라운드 처리
+export { analyzeStock } from "./analysis/analyzeStockTask.js";
+
 let priceCache = {};
 const getCachedQuote = async (symbol) => {
     if (priceCache[symbol]) {

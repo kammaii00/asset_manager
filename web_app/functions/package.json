@@ -14,6 +14,7 @@
     "type": "module",
     "main": "index.js",
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.115.0",
         "@google/genai": "^1.44.0",
         "adm-zip": "^0.5.16",
         "fast-xml-parser": "^5.0.0",
