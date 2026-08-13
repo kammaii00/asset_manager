@@ -6,10 +6,11 @@
  */
 
 import admin from "firebase-admin";
-import { fetchFinancialStatements, fetchDisclosures } from "./clients/dart.js";
+import { fetchFinancialStatements, fetchDisclosures, fetchDividendInfo } from "./clients/dart.js";
 import { fetchCurrentPrice, fetchInvestorFlows, createFirestoreTokenStore } from "./clients/kis.js";
 import { fetchStockNews } from "./clients/naver.js";
 import { normalizeAnnual, mergeAnnualSeries } from "./financials.js";
+import { normalizeDividendRows } from "./dividend.js";
 import { normalizeQuote, extractFlags, resolveMarket, toYahooSymbol, isValidQuote } from "./stockEnrichment.js";
 
 // 재무제표는 분기당 최대 1회 바뀌므로 캐시를 길게 잡는다
@@ -29,7 +30,10 @@ async function loadFinancials(db, ticker, corpCode, dartKey) {
     if (snap.exists) {
         const cached = snap.data();
         const ageMs = Date.now() - (cached.updatedAt?.toMillis?.() ?? 0);
-        if (ageMs < FINANCIALS_TTL_DAYS * 86400000 && cached.series?.length) {
+        // 배당금지급 계정을 추가하기 전에 저장된 캐시에는 그 항목이 아예 없다.
+        // normalizeAnnual은 값이 없어도 키는 항상 채우므로, 키의 유무로 구버전 캐시를 가려낸다.
+        const hasDividendField = cached.series?.every((record) => "dividendsPaid" in record);
+        if (ageMs < FINANCIALS_TTL_DAYS * 86400000 && cached.series?.length && hasDividendField) {
             return { series: cached.series, fromCache: true };
         }
     }
@@ -60,6 +64,33 @@ async function loadFinancials(db, ticker, corpCode, dartKey) {
         await ref.set({ series, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     }
     return { series, fromCache: false };
+}
+
+/**
+ * 배당사항을 가져온다. 재무제표와 같은 캐시 수명을 쓴다(둘 다 사업보고서에서 나온다).
+ *
+ * 한 번의 호출로 3개년이 오므로 직전 사업연도만 조회하면 된다.
+ * 무배당 회사는 DART가 status 013(데이터 없음)을 주고, 클라이언트가 이를 빈 list로 정규화한다.
+ */
+async function loadDividend(db, ticker, corpCode, dartKey) {
+    const ref = db.collection("stock_master").doc(ticker).collection("financials").doc("dividend");
+    const snap = await ref.get();
+
+    if (snap.exists) {
+        const cached = snap.data();
+        const ageMs = Date.now() - (cached.updatedAt?.toMillis?.() ?? 0);
+        if (ageMs < FINANCIALS_TTL_DAYS * 86400000 && Array.isArray(cached.rows)) {
+            return cached.rows;
+        }
+    }
+
+    const baseYear = new Date().getFullYear() - 1;
+    const res = await fetchDividendInfo(dartKey, corpCode, baseYear);
+    const rows = normalizeDividendRows(res.list || [], baseYear);
+
+    // 무배당이라 빈 배열인 경우도 캐싱한다 — 매번 다시 물어볼 이유가 없다
+    await ref.set({ rows, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return rows;
 }
 
 /**
@@ -141,15 +172,17 @@ export async function collectStockData(db, ticker, secrets, onProgress = async (
     const today = new Date();
     const from = new Date(today.getTime() - 180 * 86400000);
 
-    // 공시와 뉴스는 서로 독립적이므로 병렬로 받는다.
-    // 둘 다 보조 입력값이라 실패해도 분석은 계속한다.
-    const [disclosureResult, newsResult] = await Promise.allSettled([
+    // 공시·뉴스·배당은 서로 독립적이므로 병렬로 받는다.
+    // 모두 보조 입력값이라 실패해도 분석은 계속한다.
+    const [disclosureResult, newsResult, dividendResult] = await Promise.allSettled([
         fetchDisclosures(secrets.dartKey, master.corpCode, YYYYMMDD(from), YYYYMMDD(today), 30),
         fetchStockNews(secrets.naverId, secrets.naverSecret, master.name, { days: 90, display: 30 }),
+        loadDividend(db, ticker, master.corpCode, secrets.dartKey),
     ]);
 
     if (disclosureResult.status === "rejected") console.warn(`공시 조회 실패 — ${disclosureResult.reason.message}`);
     if (newsResult.status === "rejected") console.warn(`뉴스 조회 실패 — ${newsResult.reason.message}`);
+    if (dividendResult.status === "rejected") console.warn(`배당사항 조회 실패 — ${dividendResult.reason.message}`);
 
     return {
         stock: {
@@ -165,6 +198,7 @@ export async function collectStockData(db, ticker, secrets, onProgress = async (
         flows,
         disclosures: disclosureResult.status === "fulfilled" ? disclosureResult.value.list || [] : [],
         news: newsResult.status === "fulfilled" ? newsResult.value : { items: [], total: 0 },
+        dividendRows: dividendResult.status === "fulfilled" ? dividendResult.value : [],
         financialsFromCache: fromCache,
     };
 }

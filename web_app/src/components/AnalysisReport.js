@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, TrendingUp, TrendingDown, Eye, ShieldCheck, ShieldAlert, CalendarClock } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, Eye, ShieldCheck, ShieldAlert, CalendarClock, Coins } from 'lucide-react';
 import InfoTooltip from '@/components/InfoTooltip';
 
 // 정량 지표 설명 — 주식을 처음 보는 사람도 이해할 수 있게 "무엇을 뜻하는지 + 어느 정도면 괜찮은지"까지 적는다
@@ -17,6 +17,11 @@ const METRIC_HELP = {
     현금전환율: '영업현금흐름 ÷ 순이익. 장부상 이익이 실제 현금으로 얼마나 들어왔는지 봅니다. 1배 미만이 이어지면 이익의 질이 나쁘다는 신호입니다.',
     FCF: '잉여현금흐름. 영업으로 번 현금에서 설비투자를 빼고 남은 돈으로, 배당·자사주·빚 상환에 쓸 수 있는 여윳돈입니다.',
     '자체 PER 밴드': '과거 PER 범위에서 현재 PER의 위치. 0%에 가까우면 역사적으로 싼 편, 100%에 가까우면 비싼 편입니다.',
+    '주당배당금(DPS)': '주식 1주를 갖고 있으면 1년에 받는 배당금입니다.',
+    '현재가 기준 수익률': '지금 주가로 사면 받게 되는 배당수익률(주당배당금 ÷ 현재 주가). 아래 시가배당률과 달리 오늘 기준입니다.',
+    시가배당률: '회사가 공시한 값으로, 배당기준일 당시 주가 기준입니다. 그 이후 주가가 변했다면 지금 사는 사람의 수익률과 다릅니다.',
+    배당성향: '순이익 중 배당으로 나눠준 비율. 너무 낮으면 주주환원이 인색하고, 100%를 넘으면 번 것보다 많이 주는 상태라 오래가기 어렵습니다.',
+    '연속 배당': '최근 몇 년 연속으로 배당을 지급했는지. 길수록 배당의 안정성이 높습니다.',
 };
 
 const AXIS_LABELS = {
@@ -210,6 +215,45 @@ export default function AnalysisReport({ report }) {
                     </p>
                 )}
             </Section>
+            )}
+
+            {/* 배당 — metrics.dividend가 없는 이전 리포트에서는 표시하지 않는다 */}
+            {metrics?.dividend && (
+                <Section title="배당" icon={Coins}>
+                    {metrics.dividend.paysDividend ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-sm">
+                            {[
+                                ['주당배당금(DPS)', metrics.dividend.dps != null ? `${metrics.dividend.dps.toLocaleString()}원` : '—'],
+                                ['현재가 기준 수익률', pctText(metrics.dividend.currentYieldPct)],
+                                ['시가배당률', pctText(metrics.dividend.disclosedYieldPct)],
+                                ['배당성향', pctText(metrics.dividend.payoutRatio)],
+                                ['연속 배당', metrics.dividend.consecutiveYears > 0 ? `${metrics.dividend.consecutiveYears}년` : '—'],
+                                ['배당 추이', metrics.dividend.trend ?? '—'],
+                            ].map(([label, value]) => (
+                                <div key={label}>
+                                    <p className="flex items-center gap-1 text-xs text-slate-400">
+                                        {label}
+                                        {METRIC_HELP[label] && <InfoTooltip text={METRIC_HELP[label]} label={`${label} 설명`} />}
+                                    </p>
+                                    <p className="font-semibold text-slate-800 tabular-nums">{value}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-slate-500">최근 재무제표 기준으로 배당 지급 이력이 없습니다.</p>
+                    )}
+
+                    {metrics.dividend.payoutOverEarnings && (
+                        <p className="mt-3 text-xs text-amber-600">
+                            ⚠️ 배당성향이 100%를 넘습니다 — 벌어들인 이익보다 많이 배당하고 있어 지금 수준을 계속 유지하기 어려울 수 있습니다.
+                        </p>
+                    )}
+                    {thesis.dividendView && (
+                        <p className="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-600 leading-relaxed">
+                            {thesis.dividendView}
+                        </p>
+                    )}
+                </Section>
             )}
 
             {/* 수급 */}

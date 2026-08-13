@@ -177,7 +177,11 @@ export async function verify(apiKey, { judgment, sources }) {
         ...Object.values(judgment.axisComments),
         ...judgment.bull,
         ...judgment.bear,
-    ].join("\n");
+        // 배당 서술에도 수치가 들어가므로 함께 대조한다
+        judgment.dividendView,
+    ]
+        .filter(Boolean)
+        .join("\n");
 
     /**
      * ⚠️ 판단에 사용된 '모든' 입력을 원본으로 넘겨야 한다.
@@ -257,6 +261,7 @@ export async function runAnalysis({ apiKey, stock, metrics, flows, news, disclos
             confidenceReason: judgmentResult.data.confidenceReason,
             monitoringPoints: judgmentResult.data.monitoringPoints,
             summary: judgmentResult.data.summary,
+            dividendView: judgmentResult.data.dividendView,
         },
         axisComments: judgmentResult.data.axisComments,
         news: newsResult.data,

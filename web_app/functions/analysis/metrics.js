@@ -8,6 +8,8 @@
  * 적자·자본잠식·데이터 결측은 예외 상황이 아니라 정상적으로 존재하는 상태이기 때문이다.
  */
 
+import { computeDividend } from "./dividend.js";
+
 // 0 나눗셈과 null을 한 곳에서 막는다 — 지표 계산의 모든 나눗셈은 이 함수를 거친다
 function ratio(numerator, denominator) {
     if (numerator === null || denominator === null) return null;
@@ -265,8 +267,9 @@ export function detectRedFlags(current, series, kisFlags = {}) {
  * @param series  최신 연도가 앞에 오는 연간 재무 시계열
  * @param quote   KIS 시세(marketCapKrw 필요)
  * @param kisFlags KIS 종목상태 플래그
+ * @param dividendRows DART 배당사항(없으면 현금흐름표 지급 이력만으로 계산한다)
  */
-export function computeMetrics(series, quote = {}, kisFlags = {}) {
+export function computeMetrics(series, quote = {}, kisFlags = {}, dividendRows = []) {
     if (!Array.isArray(series) || series.length === 0) {
         return { error: "재무 데이터가 없습니다" };
     }
@@ -292,6 +295,7 @@ export function computeMetrics(series, quote = {}, kisFlags = {}) {
         cashQuality: cashQuality(current, series),
         valuation: valuation(current, quote),
         valuationBand: historicalBand(perOf(current), historicalPers),
+        dividend: computeDividend(series, dividendRows, quote),
         redFlags: detectRedFlags(current, series, kisFlags),
     };
 }

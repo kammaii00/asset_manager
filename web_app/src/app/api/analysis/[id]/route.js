@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb, getUserIdFromRequest } from '@/lib/firebase-admin';
+import { isActiveRequest } from '@/lib/analysisRequest';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,5 +59,41 @@ export async function GET(request, { params }) {
     } catch (error) {
         console.error('Analysis status error:', error);
         return NextResponse.json({ error: '분석 상태를 불러오지 못했습니다.' }, { status: 500 });
+    }
+}
+
+/**
+ * 분석 기록 삭제.
+ *
+ * 지우는 것은 내 요청 기록(users/{uid}/analysis_requests)뿐이고, 리포트 원본
+ * (stock_analyses/{ticker}/reports/{date})은 남긴다. 리포트는 종목·날짜 단위 공용
+ * 문서라 같은 종목을 다시 분석할 때 재사용돼 비용을 아끼며, 한 사용자의 목록 정리 때문에
+ * 지울 성질의 것이 아니다.
+ */
+export async function DELETE(request, { params }) {
+    try {
+        const uid = await getUserIdFromRequest(request);
+        if (!uid) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { id } = await params;
+        const ref = adminDb.collection('users').doc(uid).collection('analysis_requests').doc(id);
+        const snap = await ref.get();
+        if (!snap.exists) {
+            return NextResponse.json({ error: '요청을 찾을 수 없습니다.' }, { status: 404 });
+        }
+
+        // 정말 돌고 있는 요청을 지우면 큐 함수가 완료를 기록하면서 문서를 되살린다.
+        // 반대로 오래 멈춰 있는 잔해는 지울 수 있어야 한다 (판정 기준은 analysisRequest.js).
+        if (isActiveRequest(snap.data())) {
+            return NextResponse.json({ error: '분석이 진행 중입니다. 끝난 뒤에 삭제해 주세요.' }, { status: 409 });
+        }
+
+        await ref.delete();
+        return NextResponse.json({ ok: true });
+    } catch (error) {
+        console.error('Analysis delete error:', error);
+        return NextResponse.json({ error: '삭제하지 못했습니다.' }, { status: 500 });
     }
 }

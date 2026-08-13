@@ -35,6 +35,13 @@ const ACCOUNTS = {
         label: "유형자산취득",
         required: false,
     },
+    // 배당 지급액. 재무활동 현금흐름 항목이라 추가 API 호출 없이 6개년 배당 이력을 얻을 수 있다.
+    // 현금 유출이라 음수로 오는 것이 보통이므로 쓰는 쪽에서 절댓값을 취한다.
+    dividendsPaid: {
+        id: "ifrs-full_DividendsPaidClassifiedAsFinancingActivities",
+        label: "배당금지급",
+        required: false,
+    },
 };
 
 // 표준계정코드가 없는 소수 행을 대비한 계정명 보조 매칭
@@ -42,6 +49,8 @@ const NAME_FALLBACK = {
     operatingIncome: ["영업이익", "영업이익(손실)"],
     revenue: ["매출액", "수익(매출액)", "영업수익"],
     netIncome: ["당기순이익", "당기순이익(손실)"],
+    // 배당금지급은 표준계정코드를 쓰지 않는 회사가 많아 계정명 후보를 넓게 잡는다
+    dividendsPaid: ["배당금지급", "배당금의지급", "배당금지급액", "현금배당금의지급", "배당금의 지급"],
 };
 
 /**

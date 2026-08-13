@@ -80,7 +80,12 @@ export const analyzeStock = onTaskDispatched(
             const collected = await collectStockData(db, ticker, secrets, onProgress);
 
             await onProgress({ step: 2, message: "정량 지표 계산 중", pct: 50 });
-            const metrics = computeMetrics(collected.series, collected.stock.quote, collected.stock.flags);
+            const metrics = computeMetrics(
+                collected.series,
+                collected.stock.quote,
+                collected.stock.flags,
+                collected.dividendRows,
+            );
 
             // 거시지표는 보조 입력값이다. 실패해도 분석을 멈추지 않는다.
             await onProgress({ step: 4, message: "거시지표 수집 중", pct: 52 });

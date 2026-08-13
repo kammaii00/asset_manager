@@ -15,7 +15,8 @@
     "lint": "eslint",
     "migrate:firestore": "node scripts/migrate-root-to-user.mjs",
     "backfill:briefing-market-date": "node scripts/backfill-briefing-market-date.mjs",
-    "fix:briefing-change-percent": "node scripts/fix-briefing-change-percent.mjs"
+    "fix:briefing-change-percent": "node scripts/fix-briefing-change-percent.mjs",
+    "backfill:report-dividend": "node scripts/backfill-report-dividend.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.44.0",

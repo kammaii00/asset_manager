@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import useAssetStore from '@/store/useAssetStore';
 import { AppHeader, MobileTabBar, MAIN_BOTTOM_PADDING } from '@/components/AppNav';
 import AnalysisReport from '@/components/AnalysisReport';
-import { LineChart, Search, Loader2, TrendingUp, RotateCcw, Clock } from 'lucide-react';
+import FnGuidePanel, { fnGuideUrl } from '@/components/FnGuidePanel';
+import { LineChart, Search, Loader2, TrendingUp, RotateCcw, Clock, SquareSplitHorizontal, ExternalLink, Trash2 } from 'lucide-react';
 
 const MARKET_STYLE = {
     KOSPI: 'bg-blue-50 text-blue-600',
@@ -54,6 +55,7 @@ export default function AnalysisPage() {
     const [job, setJob] = useState(null); // { id, status, progress, report, ... }
     const [requesting, setRequesting] = useState(false);
     const [history, setHistory] = useState([]);
+    const [compare, setCompare] = useState(false); // FnGuide 좌우 비교 (lg 이상에서만 노출)
 
     const searchTimer = useRef(null);
     const pollTimer = useRef(null);
@@ -148,6 +150,21 @@ export default function AnalysisPage() {
             setError(e.message);
         } finally {
             setRequesting(false);
+        }
+    };
+
+    // 분석 기록 삭제 — 내 목록에서만 지우고 리포트 원본은 남긴다(같은 종목 재분석 시 재사용)
+    const deleteHistory = async (item) => {
+        if (!window.confirm(`'${item.stockName}' 분석 기록을 삭제할까요?`)) return;
+        try {
+            const headers = await getAuthHeaders();
+            const res = await fetch(`/api/analysis/${item.id}`, { method: 'DELETE', headers });
+            if (!res.ok) throw new Error((await res.json()).error || '삭제하지 못했습니다.');
+            setHistory((prev) => prev.filter((h) => h.id !== item.id));
+            if (job?.id === item.id) setJob(null);
+        } catch (e) {
+            // 목록은 화면 맨 아래에 있어 상단 오류 문구가 눈에 띄지 않는다. 실패는 바로 알려준다.
+            window.alert(e.message);
         }
     };
 
@@ -279,16 +296,44 @@ export default function AnalysisPage() {
                     </div>
                 )}
 
-                {/* 리포트 */}
+                {/* 리포트 — 비교 모드에서는 max-w-3xl 밖으로 넓혀 좌우 2단으로 편다 */}
                 {job?.status === 'done' && job.report && (
-                    <div className="mt-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs text-slate-400">분석 비용 ${job.costUsd}</span>
-                            <button onClick={() => { setJob(null); setSelected(null); }} className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#0d7ff2]">
-                                <RotateCcw size={13} /> 다른 종목 분석
-                            </button>
+                    <div className={compare ? 'mt-5 relative left-1/2 -translate-x-1/2 w-[min(1800px,100vw-2rem)]' : 'mt-5'}>
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <span className="text-xs text-slate-400 shrink-0">분석 비용 ${job.costUsd}</span>
+                            <div className="flex items-center gap-4">
+                                {/* 좁은 화면에서 좌우 비교는 의미가 없어 링크만 제공한다 */}
+                                <a
+                                    href={fnGuideUrl(job.report.ticker)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="lg:hidden flex items-center gap-1 text-xs text-slate-500 hover:text-[#0d7ff2]"
+                                >
+                                    <ExternalLink size={13} /> FnGuide
+                                </a>
+                                <button
+                                    onClick={() => setCompare((v) => !v)}
+                                    className={`hidden lg:flex items-center gap-1 text-xs transition-colors ${compare ? 'text-[#0d7ff2] font-semibold' : 'text-slate-500 hover:text-[#0d7ff2]'}`}
+                                >
+                                    <SquareSplitHorizontal size={13} /> FnGuide 비교
+                                </button>
+                                <button onClick={() => { setJob(null); setSelected(null); }} className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#0d7ff2]">
+                                    <RotateCcw size={13} /> 다른 종목 분석
+                                </button>
+                            </div>
                         </div>
-                        <AnalysisReport report={job.report} />
+
+                        {compare ? (
+                            <div className="grid lg:grid-cols-2 gap-4 items-start">
+                                <AnalysisReport report={job.report} />
+                                {/* 리포트를 스크롤해도 따라오도록 고정 (헤더 높이만큼 내려서 시작) */}
+                                <div className="hidden lg:block lg:sticky lg:top-24 h-[calc(100vh-8rem)]">
+                                    <FnGuidePanel ticker={job.report.ticker} stockName={job.report.stockName} />
+                                </div>
+                            </div>
+                        ) : (
+                            <AnalysisReport report={job.report} />
+                        )}
                     </div>
                 )}
 
@@ -300,28 +345,41 @@ export default function AnalysisPage() {
                             <h2 className="text-xs font-semibold">최근 분석</h2>
                         </div>
                         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                            {/* 행 전체가 버튼이면 삭제 버튼을 안에 넣을 수 없어(버튼 중첩) 영역을 나눈다 */}
                             {history.map((item) => (
-                                <button
+                                <div
                                     key={item.id}
-                                    onClick={() => openHistory(item.id)}
-                                    disabled={item.status !== 'done'}
-                                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-colors border-b border-slate-100 last:border-0"
+                                    className="flex items-center gap-1 pl-4 pr-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
                                 >
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <span className="font-medium text-slate-800 truncate">{item.stockName}</span>
-                                        <span className="text-xs text-slate-400 font-mono">{item.ticker}</span>
-                                    </div>
-                                    {item.status === 'done' ? (
-                                        <span className="text-sm shrink-0">
-                                            <span className="font-bold text-slate-900 tabular-nums">{item.scoreTotal}</span>
-                                            <span className={`ml-1.5 text-xs font-semibold ${GRADE_COLOR[item.grade] ?? 'text-slate-400'}`}>{item.grade}</span>
-                                        </span>
-                                    ) : (
-                                        <span className="text-xs text-slate-400 shrink-0">
-                                            {item.status === 'failed' ? '실패' : '진행 중'}
-                                        </span>
-                                    )}
-                                </button>
+                                    <button
+                                        onClick={() => openHistory(item.id)}
+                                        disabled={item.status !== 'done'}
+                                        className="flex-1 flex items-center justify-between gap-2 min-w-0 py-3 text-left disabled:opacity-50"
+                                    >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="font-medium text-slate-800 truncate">{item.stockName}</span>
+                                            <span className="text-xs text-slate-400 font-mono">{item.ticker}</span>
+                                        </div>
+                                        {item.status === 'done' ? (
+                                            <span className="text-sm shrink-0">
+                                                <span className="font-bold text-slate-900 tabular-nums">{item.scoreTotal}</span>
+                                                <span className={`ml-1.5 text-xs font-semibold ${GRADE_COLOR[item.grade] ?? 'text-slate-400'}`}>{item.grade}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-slate-400 shrink-0">
+                                                {item.status === 'failed' ? '실패' : '진행 중'}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => deleteHistory(item)}
+                                        aria-label={`${item.stockName} 분석 기록 삭제`}
+                                        title="삭제"
+                                        className="shrink-0 p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                    >
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     </div>

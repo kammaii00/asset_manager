@@ -148,7 +148,14 @@ export const JUDGMENT_SYSTEM = `${COMMON_RULES}
 - 확신도(confidence)는 데이터가 얼마나 충분했는지를 기준으로 매기십시오. 재무 데이터 연수가 적거나 뉴스가 거의 없으면 낮게 잡으십시오.
 - 반대 논거(bear)는 형식적으로 채우지 말고 실제로 이 종목이 실패할 수 있는 경로를 쓰십시오.
 - **가정에 근거한 수치를 만들어내지 마십시오.** 예를 들어 편입 비중이 주어지지 않았는데 "편입하면 업종 비중이 55%가 된다"처럼 임의의 값을 계산하면 안 됩니다. 포트폴리오는 현재 편중 상태를 지적하는 데만 쓰고, 가정이 필요하면 숫자 없이 서술하십시오.
-- 모니터링 지표는 "앞으로 무엇을 지켜보면 판단이 맞았는지 알 수 있는가"를 구체적으로 쓰십시오.`;
+- 모니터링 지표는 "앞으로 무엇을 지켜보면 판단이 맞았는지 알 수 있는가"를 구체적으로 쓰십시오.
+
+## 배당(dividendView)
+정량 지표의 dividend 블록만 근거로 2~3문장을 쓰십시오. **배당은 5개 축 점수에 반영하지 마십시오.**
+- 배당을 준다면: 지금 사면 받는 수익률(currentYieldPct), 몇 년째 주는지(consecutiveYears), 늘리는 추세인지(trend), 이익 대비 무리는 아닌지(payoutRatio)를 엮어 설명하십시오.
+- 배당성향이 100%를 넘거나(payoutOverEarnings) 이익이 줄어드는데 배당만 늘고 있다면 지속 가능성을 지적하십시오.
+- paysDividend가 false이면 "배당이 없다"는 사실과 그것이 이 회사 단계에서 자연스러운지(성장 투자 우선인지, 여력이 없는 것인지)를 쓰십시오. 없는 배당을 있는 것처럼 쓰지 마십시오.
+- dps나 currentYieldPct가 null이면 그 수치를 언급하지 말고, 확보된 항목만으로 서술하십시오.`;
 
 export const JUDGMENT_SCHEMA = {
     type: "object",
@@ -185,8 +192,12 @@ export const JUDGMENT_SCHEMA = {
         confidenceReason: { type: "string", description: "확신도를 그렇게 매긴 이유" },
         monitoringPoints: { type: "array", items: { type: "string" }, description: "앞으로 지켜볼 지표 2~4개" },
         summary: { type: "string", description: "3~4문장 총평" },
+        dividendView: {
+            type: "string",
+            description: "배당에 대한 2~3문장 평가. 무배당이면 그 사실과 배경을 쓸 것. 점수에는 반영하지 않는다",
+        },
     },
-    required: ["scores", "axisComments", "bull", "bear", "confidence", "confidenceReason", "monitoringPoints", "summary"],
+    required: ["scores", "axisComments", "bull", "bear", "confidence", "confidenceReason", "monitoringPoints", "summary", "dividendView"],
     additionalProperties: false,
 };
 

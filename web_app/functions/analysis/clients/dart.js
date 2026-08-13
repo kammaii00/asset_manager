@@ -99,6 +99,23 @@ export async function fetchFinancialStatements(apiKey, corpCode, businessYear, r
 }
 
 /**
+ * 배당에 관한 사항 조회.
+ *
+ * 한 번의 호출로 당기·전기·전전기 3개년의 주당배당금·시가배당률·배당성향이 함께 온다.
+ * 재무제표(fnlttSinglAcntAll)에는 주당 기준 배당 정보가 없어 이 API가 따로 필요하다.
+ *
+ * @param reportCode 11011=사업보고서 (연간 배당은 사업보고서에만 확정된다)
+ */
+export async function fetchDividendInfo(apiKey, corpCode, businessYear, reportCode = "11011") {
+    return callJson(
+        apiKey,
+        "alotMatter.json",
+        { corp_code: corpCode, bsns_year: String(businessYear), reprt_code: reportCode },
+        "배당사항",
+    );
+}
+
+/**
  * 공시목록 조회 — 유상증자·자사주·최대주주 변경 등 이벤트 탐지용.
  *
  * @param beginDate/endDate YYYYMMDD

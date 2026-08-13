@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getFunctions } from 'firebase-admin/functions';
 import { adminDb, getUserIdFromRequest } from '@/lib/firebase-admin';
+import { isActiveRequest } from '@/lib/analysisRequest';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,16 +33,19 @@ export async function POST(request) {
         }
         const master = masterSnap.data();
 
-        // 같은 종목이 이미 대기·진행 중이면 중복 요청을 만들지 않는다 (LLM 비용 절약)
+        // 같은 종목이 이미 대기·진행 중이면 중복 요청을 만들지 않는다 (LLM 비용 절약).
+        // 단 큐 등록 후 실행되지 못해 'queued'로 굳어버린 잔해는 재사용하면 안 된다 —
+        // 진행률 0%에서 영영 멈춘 요청을 돌려주게 되므로, 죽은 요청은 무시하고 새로 시작한다.
         const running = await adminDb
             .collection('users').doc(uid).collection('analysis_requests')
             .where('ticker', '==', ticker)
             .where('status', 'in', ['queued', 'running'])
-            .limit(1)
+            .limit(5)
             .get();
 
-        if (!running.empty) {
-            return NextResponse.json({ requestId: running.docs[0].id, reused: true }, { status: 202 });
+        const active = running.docs.find((doc) => isActiveRequest(doc.data()));
+        if (active) {
+            return NextResponse.json({ requestId: active.id, reused: true }, { status: 202 });
         }
 
         const requestRef = adminDb.collection('users').doc(uid).collection('analysis_requests').doc();
