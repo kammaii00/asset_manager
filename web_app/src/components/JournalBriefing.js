@@ -11,6 +11,18 @@ const SENTIMENT_STYLES = {
     fear: { emoji: '🔴', className: 'bg-red-50 border-red-200 text-red-700' },
 };
 
+// 'YYYY-MM-DD' → 'M월 D일' (구버전 문서처럼 값이 없으면 빈 문자열)
+function formatShortDate(date) {
+    const [, month, day] = String(date || '').split('-');
+    return month && day ? `${Number(month)}월 ${Number(day)}일` : '';
+}
+
+// 지수·환율 값 표기 (천 단위 구분 + 소수 2자리)
+function formatIndexPrice(price) {
+    if (price == null) return '';
+    return price.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // 등락률 배지 (국내 관행: 상승 빨강 / 하락 파랑)
 export function ChangeBadge({ value }) {
     if (value == null) return <span className="text-slate-400 text-xs">-</span>;
@@ -79,12 +91,17 @@ function WatchList({ items }) {
 export default function JournalBriefing({ briefing }) {
     const [open, setOpen] = useState(false);
     const hasDetail = briefing.domestic?.length > 0 || briefing.overseas?.length > 0 || briefing.watch?.length > 0;
+    // 07시 브리핑의 지수·뉴스는 직전 거래일 것이므로, 오늘 장 결과로 오해하지 않도록 기준일을 함께 적는다
+    const marketDateLabel = formatShortDate(briefing.marketDate);
 
     return (
         <div className="bg-gradient-to-br from-indigo-50/70 to-white border border-indigo-100 rounded-xl p-4">
-            <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-sm mb-2">
+            <div className="flex flex-wrap items-center gap-x-1.5 text-indigo-600 font-bold text-sm mb-2">
                 <Sparkles size={15} />
-                오늘의 시황
+                아침 시황
+                {marketDateLabel && (
+                    <span className="font-medium text-slate-400 text-xs">· {marketDateLabel} 종가 기준</span>
+                )}
             </div>
 
             {briefing.headline && (
@@ -95,8 +112,15 @@ export default function JournalBriefing({ briefing }) {
                 <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
                     {briefing.sentiment && <SentimentBadge sentiment={briefing.sentiment} />}
                     {briefing.indices?.map((idx) => (
-                        <span key={idx.name} className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2.5 py-1">
+                        <span
+                            key={idx.name}
+                            className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2.5 py-1"
+                            title={marketDateLabel ? `${marketDateLabel} 종가 기준 등락률` : '직전 거래일 종가 기준 등락률'}
+                        >
                             <span className="text-slate-500 text-xs">{idx.name}</span>
+                            {idx.price != null && (
+                                <span className="text-slate-700 text-xs font-semibold tabular-nums">{formatIndexPrice(idx.price)}</span>
+                            )}
                             <ChangeBadge value={idx.changePercent} />
                         </span>
                     ))}

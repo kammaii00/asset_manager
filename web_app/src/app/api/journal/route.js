@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 // 공용 시황 문서에서 화면에 필요한 필드만 추린다 (createdAt 등 직렬화 불가 필드 제외)
 function toBriefing(data) {
     return {
+        marketDate: data.marketDate || '', // 지수·뉴스의 기준일(직전 거래일). 구버전 문서에는 없다.
         headline: data.headline || '',
         summary: data.summary || '',
         domestic: data.domestic || [],

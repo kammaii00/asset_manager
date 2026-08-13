@@ -13,7 +13,10 @@ const INDEX_TARGETS = [
     { symbol: "^KQ11", name: "코스닥" },
     { symbol: "^IXIC", name: "나스닥" },
     { symbol: "^GSPC", name: "S&P500" },
-    { symbol: "KRW=X", name: "원/달러" },
+    // 환율만 preferQuote — 24시간 거래라 야후의 일별 봉이 불규칙하다.
+    // 실측(30일): 금요일 봉이 통째로 빠지고 일요일 봉이 대신 들어와 "전일 대비"를 계산할 수 없다.
+    // 지수(^KS11·^KQ11 등)는 반대로 거래일 봉이 정확해 시계열 계산이 안전하다.
+    { symbol: "KRW=X", name: "원/달러", preferQuote: true },
 ];
 
 // VIX(변동성지수, 흔히 '공포지수') 구간별 시장 온도 — 통상적인 해석 기준
@@ -26,16 +29,35 @@ const VIX_LEVELS = [
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
+// KST(Asia/Seoul) 기준 현재 시각 (UTC 필드를 읽으면 KST 값이 되도록 9시간 밀어 둔 Date)
+function nowKST() {
+    return new Date(Date.now() + 9 * 60 * 60 * 1000);
+}
+
+// Date를 YYYY-MM-DD 문자열로 변환
+function formatDate(date) {
+    return date.toISOString().split("T")[0];
+}
+
 // KST(Asia/Seoul) 기준 오늘 날짜 문자열(YYYY-MM-DD) 반환
 function getTodayKST() {
-    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-    return kst.toISOString().split("T")[0];
+    return formatDate(nowKST());
 }
 
 // KST 기준 요일 (0=일 … 6=토) — 브리핑이 훑어야 할 뉴스 구간을 정할 때 쓴다
 function getWeekdayKST() {
-    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-    return kst.getUTCDay();
+    return nowKST().getUTCDay();
+}
+
+// 브리핑에 담긴 지수·뉴스의 실제 기준일 = 직전 거래일.
+// 07시 브리핑은 어제 국내 종가와 오늘 새벽 마감한 미국장(현지 기준 어제)을 담으므로
+// 문서 ID(생성일)와 데이터 기준일이 하루 어긋난다. 사후 검증 때 헷갈리지 않도록 따로 기록한다.
+// 월요일 07시 브리핑은 금요일 종가를 담으므로 3일 전으로 잡는다(주말은 실행되지 않음).
+// 공휴일은 한쪽 시장만 쉬는 경우가 대부분이라 반영하지 않고 요일 규칙만 적용한다.
+function resolveMarketDate(weekday) {
+    const kst = nowKST();
+    kst.setUTCDate(kst.getUTCDate() - (weekday === 1 ? 3 : 1));
+    return formatDate(kst);
 }
 
 // 브리핑이 다룰 뉴스 구간 — 주말은 휴장이라 실행하지 않으므로,
@@ -53,17 +75,55 @@ function resolveNewsWindow(weekday) {
     };
 }
 
-// 등락률 계산 — 야후의 regularMarketChangePercent가 종목에 따라 잘못된 값을 주는 사례가 있어
-// (예: ^VIX는 change를 전일종가와 같은 값으로 내려 -54% 같은 불가능한 수치가 나옴)
-// 전일종가가 있으면 직접 계산하고, 없을 때만 야후 값을 쓴다.
-function resolveChangePercent(quote) {
+// 종가와 직전 종가로 등락률 계산 (소수 둘째 자리)
+function toChangePercent(price, prev) {
+    if (price == null || !prev) return null;
+    return Number((((price - prev) / prev) * 100).toFixed(2));
+}
+
+// 최근 2거래일 종가 조회.
+// 야후 quote의 등락률 필드는 종목에 따라 신뢰할 수 없다 —
+// ^VIX는 change에 전일종가와 같은 값을 넣어 -54% 같은 불가능한 수치를 주고,
+// ^KQ11은 07시 시점에 regularMarketPreviousClose가 며칠 전 종가에 머물러 있어
+// 실제 +0.39%가 +7.39%로 부풀려 저장된 날이 있었다(2026-08-12 실측).
+// 그래서 등락률은 quote가 아니라 일별 종가 시계열에서 직접 계산한다.
+async function fetchDailyCloses(yf, symbol) {
+    const period1 = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const chart = await yf.chart(symbol, { period1, interval: "1d" });
+    const closes = (chart?.quotes || []).map((q) => q?.close).filter((c) => c != null);
+    if (closes.length < 2) return null;
+    return { price: closes[closes.length - 1], prev: closes[closes.length - 2] };
+}
+
+// quote 기반 종가·등락률 (환율용 기본 경로이자, 시계열 조회가 실패했을 때의 대체 경로)
+async function fetchPointFromQuote(yf, symbol) {
+    const quote = await yf.quote(symbol);
     const price = quote?.regularMarketPrice;
-    const prev = quote?.regularMarketPreviousClose;
-    if (price != null && prev) {
-        return Number((((price - prev) / prev) * 100).toFixed(2));
+    if (price == null) return null;
+    return {
+        price: Number(price.toFixed(2)),
+        changePercent: toChangePercent(price, quote?.regularMarketPreviousClose),
+    };
+}
+
+// 심볼 1종의 종가·등락률 — 지수는 일별 시계열, 환율은 quote.
+// 시계열 조회가 실패해도 항목 전체가 빠지는 것보다는 낫기 때문에 quote로 대체한다.
+async function fetchPoint(yf, symbol, preferQuote = false) {
+    if (!preferQuote) {
+        try {
+            const series = await fetchDailyCloses(yf, symbol);
+            if (series) {
+                return {
+                    price: Number(series.price.toFixed(2)),
+                    changePercent: toChangePercent(series.price, series.prev),
+                };
+            }
+            console.warn(`[briefing] ${symbol}: 일별 종가가 2개 미만 — quote로 대체`);
+        } catch (error) {
+            console.warn(`[briefing] ${symbol} 일별 시세 조회 실패: ${error.message} — quote로 대체`);
+        }
     }
-    const pct = quote?.regularMarketChangePercent;
-    return pct != null ? Number(pct.toFixed(2)) : null;
+    return fetchPointFromQuote(yf, symbol);
 }
 
 // 대표 지수·환율의 최근 종가와 등락률 조회 (실패한 항목은 조용히 제외)
@@ -71,13 +131,8 @@ async function fetchIndices() {
     const yf = new YahooFinance();
     const results = await Promise.all(INDEX_TARGETS.map(async (target) => {
         try {
-            const quote = await yf.quote(target.symbol);
-            const price = quote?.regularMarketPrice;
-            return {
-                name: target.name,
-                changePercent: resolveChangePercent(quote),
-                price: price != null ? Number(price.toFixed(2)) : null,
-            };
+            const point = await fetchPoint(yf, target.symbol, target.preferQuote);
+            return point ? { name: target.name, ...point } : null;
         } catch (error) {
             console.warn(`[briefing] 지수 조회 실패 ${target.symbol}: ${error.message}`);
             return null;
@@ -90,15 +145,14 @@ async function fetchIndices() {
 async function fetchSentiment() {
     const yf = new YahooFinance();
     try {
-        const quote = await yf.quote("^VIX");
-        const vix = quote?.regularMarketPrice;
-        if (vix == null) return null;
-        const matched = VIX_LEVELS.find((l) => vix < l.max);
+        const point = await fetchPoint(yf, "^VIX");
+        if (!point) return null;
+        const matched = VIX_LEVELS.find((l) => point.price < l.max);
         return {
             level: matched.level,
             label: matched.label,
-            vix: Number(vix.toFixed(2)),
-            changePercent: resolveChangePercent(quote),
+            vix: point.price,
+            changePercent: point.changePercent,
         };
     } catch (error) {
         console.warn(`[briefing] VIX 조회 실패: ${error.message}`);
@@ -219,6 +273,7 @@ async function generateBriefingBody(date, indices, sentiment, weekday) {
  * - 토·일요일은 국내·미국 모두 휴장이라 지수가 금요일 종가 그대로여서 실행하지 않는다.
  *   금요일 미국장(토 06:00 KST 마감) 결과와 주말 뉴스는 월요일 브리핑이 함께 다룬다(resolveNewsWindow 참고).
  * - 모든 유저가 같은 문서를 공유하므로 AI 호출은 유저 수와 무관하게 하루 1회.
+ * - 문서 ID는 생성일(오늘)이지만 담긴 데이터는 직전 거래일 것이므로 `marketDate`로 기준일을 함께 남긴다.
  */
 export const generateDailyBriefing = onSchedule({
     schedule: "0 7 * * 1-5",
@@ -230,13 +285,15 @@ export const generateDailyBriefing = onSchedule({
 }, async () => {
     const date = getTodayKST();
     const weekday = getWeekdayKST();
+    const marketDate = resolveMarketDate(weekday);
     try {
-        console.log(`[briefing] ${date}(${DAY_LABELS[weekday]}) 시황 생성 시작`);
+        console.log(`[briefing] ${date}(${DAY_LABELS[weekday]}) 시황 생성 시작 — 데이터 기준일 ${marketDate}`);
         const [indices, sentiment] = await Promise.all([fetchIndices(), fetchSentiment()]);
         const body = await generateBriefingBody(date, indices, sentiment, weekday);
 
         await admin.firestore().collection("market_briefings").doc(date).set({
-            date,
+            date,          // 문서 ID = 브리핑을 읽는 날(타임라인 병합 키)
+            marketDate,    // 지수·뉴스의 실제 기준일(직전 거래일)
             ...body,
             indices,
             sentiment,
