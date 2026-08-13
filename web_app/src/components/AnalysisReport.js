@@ -1,6 +1,23 @@
 'use client';
 
-import { AlertTriangle, TrendingUp, TrendingDown, Eye, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, Eye, ShieldCheck, ShieldAlert, CalendarClock } from 'lucide-react';
+import InfoTooltip from '@/components/InfoTooltip';
+
+// 정량 지표 설명 — 주식을 처음 보는 사람도 이해할 수 있게 "무엇을 뜻하는지 + 어느 정도면 괜찮은지"까지 적는다
+const METRIC_HELP = {
+    ROE: '자기자본이익률. 주주 돈 100원으로 1년에 얼마를 벌었는지를 나타냅니다. 통상 10% 이상이면 양호합니다.',
+    영업이익률: '매출 100원 중 본업으로 남긴 이익의 비율. 사업 자체의 수익성을 봅니다.',
+    순이익률: '매출 100원 중 이자·세금까지 모두 빼고 최종적으로 남은 이익의 비율입니다.',
+    '매출 3년 CAGR': '최근 3년간 매출이 해마다 평균 몇 %씩 늘었는지(연평균 성장률)를 뜻합니다.',
+    부채비율: '자기자본 대비 빚의 비율. 100% 미만이면 안정적, 200%를 넘으면 부담이 큰 편입니다.',
+    유동비율: '1년 안에 갚아야 할 빚 대비 1년 안에 현금화할 수 있는 자산의 비율. 100% 미만이면 단기 자금 압박 신호입니다.',
+    이자보상배율: '영업이익으로 이자를 몇 번 낼 수 있는지. 1배 미만이면 벌어서 이자도 못 내는 상태입니다.',
+    PER: '주가 ÷ 주당순이익. 지금 이익 수준으로 투자금을 회수하는 데 몇 년이 걸리는지를 뜻합니다. 같은 업종끼리 비교해야 의미가 있습니다.',
+    PBR: '주가 ÷ 주당순자산. 1배면 회사의 장부상 가치만큼 값이 매겨진 상태입니다.',
+    현금전환율: '영업현금흐름 ÷ 순이익. 장부상 이익이 실제 현금으로 얼마나 들어왔는지 봅니다. 1배 미만이 이어지면 이익의 질이 나쁘다는 신호입니다.',
+    FCF: '잉여현금흐름. 영업으로 번 현금에서 설비투자를 빼고 남은 돈으로, 배당·자사주·빚 상환에 쓸 수 있는 여윳돈입니다.',
+    '자체 PER 밴드': '과거 PER 범위에서 현재 PER의 위치. 0%에 가까우면 역사적으로 싼 편, 100%에 가까우면 비싼 편입니다.',
+};
 
 const AXIS_LABELS = {
     quality: '수익성',
@@ -55,10 +72,24 @@ function Section({ title, icon: Icon, children }) {
 const 억 = (v) => (v === null || v === undefined ? '—' : `${Math.round(v / 1e8).toLocaleString()}억`);
 const pctText = (v) => (v === null || v === undefined ? '—' : `${v}%`);
 
+// 분석 시점 표기 — createdAt(정확한 시각)을 우선 쓰고, 없으면 리포트 날짜(문서 ID)로 대체한다
+function formatAnalyzedAt(report) {
+    if (report.createdAt) {
+        const d = new Date(report.createdAt);
+        if (!Number.isNaN(d.getTime())) {
+            return d.toLocaleString('ko-KR', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            });
+        }
+    }
+    return report.reportDate || null;
+}
+
 export default function AnalysisReport({ report }) {
     if (!report) return null;
 
     const { scores, axisComments, thesis, metrics, flows, verification, redFlags = [] } = report;
+    const analyzedAt = formatAnalyzedAt(report);
 
     return (
         <div className="space-y-4">
@@ -76,7 +107,14 @@ export default function AnalysisReport({ report }) {
                         {scores.grade}
                     </span>
                 </div>
-                <p className="mt-3 text-xs text-slate-400">
+                {/* 리포트는 종목·날짜별로 보관돼 과거 것을 다시 열 수 있으므로 분석 시점을 명확히 밝힌다 */}
+                {analyzedAt && (
+                    <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                        <CalendarClock size={13} className="shrink-0 text-slate-400" />
+                        {analyzedAt} 분석
+                    </p>
+                )}
+                <p className="mt-1 text-xs text-slate-400">
                     확신도 {thesis.confidence} · {report.market} · {report.sector} · 분석 시점 주가 {report.priceAtAnalysis?.toLocaleString()}원
                 </p>
             </div>
@@ -157,7 +195,10 @@ export default function AnalysisReport({ report }) {
                         ['자체 PER 밴드', metrics.valuationBand ? `${metrics.valuationBand.percentile}%` : '—'],
                     ].map(([label, value]) => (
                         <div key={label}>
-                            <p className="text-xs text-slate-400">{label}</p>
+                            <p className="flex items-center gap-1 text-xs text-slate-400">
+                                {label}
+                                {METRIC_HELP[label] && <InfoTooltip text={METRIC_HELP[label]} label={`${label} 설명`} />}
+                            </p>
                             <p className="font-semibold text-slate-800 tabular-nums">{value}</p>
                         </div>
                     ))}

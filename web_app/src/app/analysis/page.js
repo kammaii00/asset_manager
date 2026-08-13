@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import useAssetStore from '@/store/useAssetStore';
-import { AppHeader, MobileTabBar } from '@/components/AppNav';
+import { AppHeader, MobileTabBar, MAIN_BOTTOM_PADDING } from '@/components/AppNav';
 import AnalysisReport from '@/components/AnalysisReport';
 import { LineChart, Search, Loader2, TrendingUp, RotateCcw, Clock } from 'lucide-react';
 
@@ -164,7 +164,7 @@ export default function AnalysisPage() {
         return (
             <div className="min-h-screen bg-slate-50">
                 <AppHeader />
-                <main className="max-w-3xl mx-auto px-4 py-16 text-center pb-24 md:pb-8">
+                <main className={`max-w-3xl mx-auto px-4 py-16 text-center ${MAIN_BOTTOM_PADDING}`}>
                     <div className="w-14 h-14 mx-auto mb-4 flex items-center justify-center rounded-2xl bg-blue-50 text-[#0d7ff2]">
                         <LineChart size={28} />
                     </div>
@@ -184,7 +184,7 @@ export default function AnalysisPage() {
     return (
         <div className="min-h-screen bg-slate-50">
             <AppHeader />
-            <main className="max-w-3xl mx-auto px-4 py-6 pb-24 md:pb-8">
+            <main className={`max-w-3xl mx-auto px-4 py-6 ${MAIN_BOTTOM_PADDING}`}>
                 <div className="flex items-center gap-2 mb-1">
                     <LineChart size={22} className="text-[#0d7ff2]" />
                     <h1 className="text-xl font-bold text-slate-900">기업분석</h1>
@@ -193,16 +193,32 @@ export default function AnalysisPage() {
                     재무제표·시세·수급·뉴스를 모아 5개 축으로 평가합니다. 분석에 1~2분이 걸립니다.
                 </p>
 
-                {/* 검색 */}
-                <div className="relative">
-                    <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                {/* 검색 — 아이콘을 absolute로 겹쳐 놓으면 브라우저가 입력창 안에 자동완성 아이콘을
+                    끼워 넣을 때 글자와 부딪히므로, flex로 자리를 나눠 겹칠 수 없게 만든다 */}
+                <div className="flex items-center gap-2.5 w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-[#0d7ff2]/30 focus-within:border-[#0d7ff2]">
+                    <Search size={18} className="shrink-0 text-slate-400" />
                     <input
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="종목명 또는 종목코드 (예: 삼성전자, 005930)"
-                        className="w-full pl-11 pr-11 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0d7ff2]/30 focus:border-[#0d7ff2]"
+                        // type="search" + 자동완성 차단 — 이름 없는 text 입력이라 맥 사파리/크롬이
+                        // 로그인 폼으로 오인해 암호 자동완성을 띄우던 문제를 막는다.
+                        // (data-* 속성은 1Password·LastPass 등 확장 프로그램용)
+                        type="search"
+                        name="stockQuery"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        inputMode="search"
+                        enterKeyHint="search"
+                        data-1p-ignore
+                        data-lpignore="true"
+                        data-form-type="other"
+                        // 사파리가 검색창에 자체 돋보기·지우기 버튼을 그리면 우리 아이콘과 중복되므로 없앤다
+                        className="flex-1 min-w-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none appearance-none [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                     />
-                    {searching && <Loader2 size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" />}
+                    {searching && <Loader2 size={18} className="shrink-0 text-slate-400 animate-spin" />}
                 </div>
 
                 {error && <p className="mt-3 text-sm text-red-500">{error}</p>}

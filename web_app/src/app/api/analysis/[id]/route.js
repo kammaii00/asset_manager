@@ -45,8 +45,11 @@ export async function GET(request, { params }) {
             const reportSnap = await adminDb.doc(data.reportPath).get();
             if (reportSnap.exists) {
                 const report = reportSnap.data();
-                // Firestore Timestamp는 그대로 직렬화되지 않으므로 제거한다
-                delete report.createdAt;
+                // Firestore Timestamp는 그대로 직렬화되지 않으므로 ISO 문자열로 바꿔 내려준다
+                // (화면에 "언제 분석한 리포트인지" 표시하는 데 쓴다)
+                report.createdAt = report.createdAt?.toDate?.().toISOString() ?? null;
+                // 리포트 문서 ID가 곧 분석 날짜(YYYY-MM-DD, KST) — createdAt이 없는 초기 리포트의 대비책
+                report.reportDate = reportSnap.id;
                 result.report = report;
             }
         }

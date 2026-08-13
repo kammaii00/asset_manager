@@ -15,6 +15,14 @@ const NAV_ITEMS = [
 // 모바일 탭바에는 설정까지 포함해 5개 탭으로 노출
 const TAB_ITEMS = [...NAV_ITEMS, { href: '/settings', label: '설정', icon: Settings }];
 
+/**
+ * 각 화면 <main>에 주는 하단 여백.
+ * 모바일 탭바는 높이 4rem에 iOS 홈 인디케이터 영역(safe-area)이 더해져 실제로는 그보다 두껍다.
+ * pb-24(6rem)만 주면 홈 인디케이터가 있는 기기에서 마지막 카드가 탭바에 살짝 가리므로
+ * safe-area만큼을 더해 준다. 탭바가 없는 md 이상에서는 기본 여백으로 돌아간다.
+ */
+export const MAIN_BOTTOM_PADDING = 'pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8';
+
 // 현재 경로가 해당 메뉴인지 판별 ('/'는 정확히 일치할 때만 활성)
 function isActive(pathname, href) {
     if (href === '/') return pathname === '/';
