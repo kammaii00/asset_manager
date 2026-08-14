@@ -7,6 +7,7 @@ export default function AssetTable({
     summary,
     handleRowClick,
     formatCurrency, formatPercent,
+    pensionRealizedAdjustment = 0,
 }) {
     return (
         <>
@@ -51,6 +52,14 @@ export default function AssetTable({
                         }
                     }
                     realizedProfit = total;
+
+                    /**
+                     * 연금은 이 앱을 쓰기 전부터 매매해 온 자산이라 거래 이력에 없는 실현손익이 있다.
+                     * 설정에서 입력한 보정값을 더해 실제 누적 실현손익을 맞춘다.
+                     */
+                    if (assetType === 'pension') {
+                        realizedProfit += (pensionRealizedAdjustment || 0);
+                    }
                 }
 
                 // 헤더 합계 계산

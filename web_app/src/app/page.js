@@ -36,7 +36,7 @@ const DRILLDOWN_COLORS = {
 };
 
 export default function Dashboard() {
-  const { assets, fetchAssets, history, dailyHistory, fetchHistory, loading, getSummary, enabledAssetTypes, fetchSettings, transactions, fetchTransactions, preferredIncludeMap, setPreferredIncludeMap, targetAssetRatios, targetTotalAmount, cashUpdateDate, isLoggedIn, getAuthHeaders, login } = useAssetStore();
+  const { assets, fetchAssets, history, dailyHistory, fetchHistory, loading, getSummary, enabledAssetTypes, fetchSettings, transactions, fetchTransactions, preferredIncludeMap, setPreferredIncludeMap, targetAssetRatios, targetTotalAmount, cashUpdateDate, pensionRealizedAdjustment, isLoggedIn, getAuthHeaders, login } = useAssetStore();
   const [filter, setFilter] = useState('DAILY');
   // 각 자산 유형의 포함 여부를 동적으로 관리 (저장된 설정 없으면 true)
   const includeMap = {};
@@ -549,6 +549,7 @@ export default function Dashboard() {
           handleRowClick={handleRowClick}
           formatCurrency={formatCurrency}
           formatPercent={formatPercent}
+          pensionRealizedAdjustment={pensionRealizedAdjustment}
         />
       </main>
 

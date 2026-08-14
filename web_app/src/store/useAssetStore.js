@@ -26,6 +26,7 @@ const useAssetStore = create(
             targetAssetRatios: {},  // 목표 자산 비중 (Phase 3)
             targetTotalAmount: 0,   // 목표 자산 총액 (Phase 3 추가)
             cashUpdateDate: null,   // 현금 최신화 알림 기준일 (Phase 3 추가)
+            pensionRealizedAdjustment: 0, // 연금 실현손익 보정값 (앱 도입 이전 매매분)
             loading: false,
             error: null,
 
@@ -382,6 +383,7 @@ const useAssetStore = create(
                         targetAssetRatios: data.targetAssetRatios || {},
                         targetTotalAmount: data.targetTotalAmount || 0,
                         cashUpdateDate: data.cashUpdateDate || null,
+                        pensionRealizedAdjustment: data.pensionRealizedAdjustment || 0,
                     });
                 } catch (error) {
                     console.error('Failed to load settings:', error);
@@ -573,7 +575,8 @@ const useAssetStore = create(
                 preferredIncludeMap: state.preferredIncludeMap,
                 targetAssetRatios: state.targetAssetRatios,
                 targetTotalAmount: state.targetTotalAmount,
-                cashUpdateDate: state.cashUpdateDate
+                cashUpdateDate: state.cashUpdateDate,
+                pensionRealizedAdjustment: state.pensionRealizedAdjustment
             }),
         }
     )

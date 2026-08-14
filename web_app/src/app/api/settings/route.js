@@ -44,7 +44,8 @@ export async function POST(request) {
             hasMigratedV2,
             targetAssetRatios,
             targetTotalAmount,
-            cashUpdateDate
+            cashUpdateDate,
+            pensionRealizedAdjustment
         } = body;
 
         const docRef = adminDb.collection('users').doc(uid).collection('settings').doc('general');
@@ -60,6 +61,8 @@ export async function POST(request) {
         if (targetAssetRatios !== undefined) updateData.targetAssetRatios = targetAssetRatios;
         if (targetTotalAmount !== undefined) updateData.targetTotalAmount = targetTotalAmount;
         if (cashUpdateDate !== undefined) updateData.cashUpdateDate = cashUpdateDate;
+        // 연금 실현손익 보정 — 앱 도입 이전 매매분은 거래 이력이 없어 계산되지 않으므로 직접 더해준다
+        if (pensionRealizedAdjustment !== undefined) updateData.pensionRealizedAdjustment = pensionRealizedAdjustment;
 
         await docRef.set(updateData, { merge: true });
 

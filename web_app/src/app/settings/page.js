@@ -31,12 +31,13 @@ const COLOR_CLASSES = {
 };
 
 export default function SettingsPage() {
-    const { enabledAssetTypes, targetAssetRatios, targetTotalAmount, cashUpdateDate, fetchSettings, updateSettings, loading, assets, isLoggedIn, user, login, logout, isPro, maxFreeAssets } = useAssetStore();
+    const { enabledAssetTypes, targetAssetRatios, targetTotalAmount, cashUpdateDate, pensionRealizedAdjustment, fetchSettings, updateSettings, loading, assets, isLoggedIn, user, login, logout, isPro, maxFreeAssets } = useAssetStore();
     const router = useRouter();
     const [localEnabled, setLocalEnabled] = useState([]);
     const [localRatios, setLocalRatios] = useState({});
     const [localTargetAmount, setLocalTargetAmount] = useState(0);
     const [localCashUpdateDate, setLocalCashUpdateDate] = useState('');
+    const [localPensionRealized, setLocalPensionRealized] = useState('');
     const [mounted, setMounted] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -59,7 +60,11 @@ export default function SettingsPage() {
         if (cashUpdateDate !== undefined) {
             setLocalCashUpdateDate(cashUpdateDate || '');
         }
-    }, [enabledAssetTypes, targetAssetRatios, targetTotalAmount, cashUpdateDate]);
+        if (pensionRealizedAdjustment !== undefined) {
+            // 0은 '보정 없음'이므로 빈 칸으로 보여준다
+            setLocalPensionRealized(pensionRealizedAdjustment ? String(pensionRealizedAdjustment) : '');
+        }
+    }, [enabledAssetTypes, targetAssetRatios, targetTotalAmount, cashUpdateDate, pensionRealizedAdjustment]);
 
     const toggleAssetType = (id) => {
         setLocalEnabled(prev => {
@@ -99,7 +104,8 @@ export default function SettingsPage() {
             enabledAssetTypes: localEnabled,
             targetAssetRatios: localRatios,
             targetTotalAmount: localTargetAmount,
-            cashUpdateDate: localCashUpdateDate ? parseInt(localCashUpdateDate) : null
+            cashUpdateDate: localCashUpdateDate ? parseInt(localCashUpdateDate) : null,
+            pensionRealizedAdjustment: localPensionRealized ? parseFloat(localPensionRealized) : 0
         });
         setSaving(false);
         setSaved(true);
@@ -110,7 +116,8 @@ export default function SettingsPage() {
         JSON.stringify(localEnabled.sort()) !== JSON.stringify([...(enabledAssetTypes || [])].sort()) ||
         JSON.stringify(localRatios) !== JSON.stringify(targetAssetRatios || {}) ||
         localTargetAmount !== targetTotalAmount ||
-        (localCashUpdateDate || null) != (cashUpdateDate || null);
+        (localCashUpdateDate || null) != (cashUpdateDate || null) ||
+        (localPensionRealized ? parseFloat(localPensionRealized) : 0) !== (pensionRealizedAdjustment || 0);
 
     // 로컬 데이터 개수 계산
     const localAssetCount = assets.filter(a => a.id.startsWith('local_')).length;
@@ -418,6 +425,37 @@ export default function SettingsPage() {
                             <button onClick={() => setLocalCashUpdateDate('25')} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-600 transition-colors">매월 25일</button>
                             <button onClick={() => setLocalCashUpdateDate('')} className="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-500 transition-colors ml-auto">알림 끄기</button>
                         </div>
+                    </div>
+                </div>
+
+                {/* 연금 실현손익 보정 */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-slate-200">
+                        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <PiggyBank size={20} className="text-purple-500" />
+                            연금 실현손익 보정
+                        </h2>
+                        <p className="text-sm text-slate-500 mt-1">
+                            이 앱을 쓰기 전에 연금 계좌에서 매매한 손익은 거래 이력이 없어 계산되지 않습니다.
+                            여기에 입력한 금액이 대시보드 연금의 <strong>&lsquo;실현&rsquo;</strong> 표시에 더해집니다.
+                        </p>
+                    </div>
+                    <div className="p-6 flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">보정 금액 (이익이면 +, 손실이면 −)</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                step="1"
+                                value={localPensionRealized}
+                                onChange={(e) => setLocalPensionRealized(e.target.value)}
+                                placeholder="예: 12000000"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all text-right pr-10"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold font-sans">원</span>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                            증권사 앱의 기간별 실현손익 조회에서 확인할 수 있습니다. 비워두면 보정하지 않습니다.
+                        </p>
                     </div>
                 </div>
 
