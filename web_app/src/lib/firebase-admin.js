@@ -7,13 +7,23 @@ import {
     __FIREBASE_ADMIN_EMBEDDED_PRIVATE_KEY,
 } from './firebaseAdminEmbedded.generated.js';
 
+// Admin SDK의 기본 앱 이름. 이름이 다른 앱은 남의 앱이므로 재사용하지 않는다.
+const DEFAULT_APP_NAME = '[DEFAULT]';
+
 /**
  * 런타임 env(로컬 next dev) 우선, 없으면 prebuild가 만든 firebaseAdminEmbedded.generated.js 값 사용.
  * Cloud Run에는 .env가 없어 process.env만으로는 비어 있음 → 생성 파일에 박힌 상수로 Admin 초기화.
+ *
+ * 재사용은 **기본 앱일 때만** 한다. Firebase Hosting의 Next.js 런타임(firebase-frameworks)이
+ * 서버 부팅 시 'firebase-frameworks'라는 이름 붙은 Admin 앱을 먼저 만들어 두는데,
+ * 예전처럼 getApps()[0]을 그대로 쓰면 기본 앱이 끝내 만들어지지 않아
+ * 앱을 인자로 받지 않는 SDK 호출(getFunctions() 등)이
+ * "The default Firebase app does not exist"로 실패한다(로컬 dev에서는 재현되지 않음).
  */
 function getOrInitApp() {
-    if (getApps().length > 0) {
-        return getApps()[0];
+    const existingDefault = getApps().find((it) => it.name === DEFAULT_APP_NAME);
+    if (existingDefault) {
+        return existingDefault;
     }
 
     const projectId =
@@ -70,7 +80,8 @@ const adminDb = getFirestore(app);
 const adminAuth = getAuth(app);
 
 /** 서버 API Route에서만 사용. 클라이언트 SDK로는 rules의 request.auth가 비어 사용자 데이터 읽기가 거부됨. */
-export { adminDb, adminAuth, FieldValue };
+/** adminApp은 앱을 인자로 요구하는 SDK(getFunctions 등)에 명시적으로 넘기기 위해 내보낸다. */
+export { app as adminApp, adminDb, adminAuth, FieldValue };
 
 export async function getUserIdFromRequest(request) {
     const authHeader = request.headers.get('Authorization');

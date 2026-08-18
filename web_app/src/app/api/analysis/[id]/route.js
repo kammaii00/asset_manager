@@ -33,6 +33,8 @@ export async function GET(request, { params }) {
             ticker: data.ticker,
             stockName: data.stockName,
             status: data.status,
+            // 화면이 '큐에 등록되지 못해 멈춘 요청'을 판정하려면 요청 시각이 필요하다(analysisRequest.js)
+            createdAt: data.createdAt ?? null,
             progress: data.progress ?? null,
             error: data.error ?? null,
             scoreTotal: data.scoreTotal ?? null,

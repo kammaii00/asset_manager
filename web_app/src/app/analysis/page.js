@@ -5,6 +5,7 @@ import useAssetStore from '@/store/useAssetStore';
 import { AppHeader, MobileTabBar, MAIN_BOTTOM_PADDING } from '@/components/AppNav';
 import AnalysisReport from '@/components/AnalysisReport';
 import FnGuidePanel, { fnGuideUrl } from '@/components/FnGuidePanel';
+import { isActiveRequest } from '@/lib/analysisRequest';
 import { LineChart, Search, Loader2, TrendingUp, RotateCcw, Clock, SquareSplitHorizontal, ExternalLink, Trash2 } from 'lucide-react';
 
 const MARKET_STYLE = {
@@ -120,6 +121,13 @@ export default function AnalysisPage() {
 
                 if (data.status === 'done' || data.status === 'failed') {
                     clearInterval(pollTimer.current);
+                    loadHistory();
+                } else if (!isActiveRequest(data)) {
+                    // 큐에 등록되지 못한 요청은 상태가 'queued'에 머문 채 영영 진행되지 않는다.
+                    // 무한 폴링을 막고 다시 요청하도록 알린다.
+                    clearInterval(pollTimer.current);
+                    setJob(null);
+                    setError('분석이 시작되지 못했습니다. 다시 요청해 주세요.');
                     loadHistory();
                 }
             } catch (e) {
@@ -367,7 +375,8 @@ export default function AnalysisPage() {
                                             </span>
                                         ) : (
                                             <span className="text-xs text-slate-400 shrink-0">
-                                                {item.status === 'failed' ? '실패' : '진행 중'}
+                                                {/* 상태값만 보면 큐 등록에 실패한 잔해가 영원히 '진행 중'으로 보인다 */}
+                                                {item.status === 'failed' ? '실패' : isActiveRequest(item) ? '진행 중' : '중단됨'}
                                             </span>
                                         )}
                                     </button>

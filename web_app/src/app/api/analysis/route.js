@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getFunctions } from 'firebase-admin/functions';
-import { adminDb, getUserIdFromRequest } from '@/lib/firebase-admin';
+import { adminApp, adminDb, getUserIdFromRequest } from '@/lib/firebase-admin';
 import { isActiveRequest } from '@/lib/analysisRequest';
 
 export const dynamic = 'force-dynamic';
@@ -58,9 +58,23 @@ export async function POST(request) {
             createdAt: new Date().toISOString(),
         });
 
-        await getFunctions()
-            .taskQueue(QUEUE_PATH)
-            .enqueue({ requestId: requestRef.id, uid, ticker });
+        // 앱을 반드시 명시한다 — 인자를 비우면 기본 앱을 찾는데, 운영(Firebase Hosting)에서는
+        // firebase-frameworks가 만든 이름 붙은 앱만 있는 상황이 생겨 호출 자체가 실패한다.
+        try {
+            await getFunctions(adminApp)
+                .taskQueue(QUEUE_PATH)
+                .enqueue({ requestId: requestRef.id, uid, ticker });
+        } catch (error) {
+            // 큐 등록에 실패하면 방금 만든 요청 문서를 'failed'로 확정한다.
+            // 'queued'로 남겨두면 아래 중복 검사가 이 잔해를 살아 있는 요청으로 보고 재사용해,
+            // 곧바로 다시 눌러도 큐에 들어가지 못한 채 화면만 영원히 '진행 중'이 된다.
+            console.error('Analysis enqueue error:', error);
+            await requestRef.set(
+                { status: 'failed', error: `분석 요청을 큐에 등록하지 못했습니다: ${error.message}` },
+                { merge: true },
+            );
+            return NextResponse.json({ error: '분석 요청에 실패했습니다.' }, { status: 500 });
+        }
 
         return NextResponse.json({ requestId: requestRef.id, reused: false }, { status: 202 });
     } catch (error) {
